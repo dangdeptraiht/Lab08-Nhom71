@@ -16,12 +16,21 @@ Definition of Done Sprint 1:
 import os
 import json
 import re
+import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
 load_dotenv()
+
+# Đảm bảo in được tiếng Việt trên Console Windows
+if sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except AttributeError:
+        pass
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # =============================================================================
@@ -31,10 +40,9 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DOCS_DIR = Path(__file__).parent / "data" / "docs"
 CHROMA_DB_DIR = Path(__file__).parent / "chroma_db"
 
-# TODO Sprint 1: Điều chỉnh chunk size và overlap theo quyết định của nhóm
-# Gợi ý từ slide: chunk 300-500 tokens, overlap 50-80 tokens
-CHUNK_SIZE = 400  # tokens (ước lượng bằng số ký tự / 4)
-CHUNK_OVERLAP = 80  # tokens overlap giữa các chunk
+CHUNK_SIZE = 500  # tokens (uoc luong bang so ky tu / 4)
+CHUNK_OVERLAP = 50  # tokens overlap giua cac chunk
+
 
 
 # =============================================================================
@@ -55,60 +63,69 @@ def preprocess_document(raw_text: str, filepath: str) -> Dict[str, Any]:
         Dict chứa:
           - "text": nội dung đã clean
           - "metadata": dict với source, department, effective_date, access
-
-    TODO Sprint 1:
-    - Extract metadata từ dòng đầu file (Source, Department, Effective Date, Access)
-    - Bỏ các dòng header metadata khỏi nội dung chính
-    - Normalize khoảng trắng, xóa ký tự rác
-
-    Gợi ý: dùng regex để parse dòng "Key: Value" ở đầu file.
     """
     lines = raw_text.strip().split("\n")
     metadata = {
         "source": filepath,
         "section": "",
+        "title": "",
         "department": "unknown",
         "effective_date": "unknown",
         "access": "internal",
     }
-    content_lines = []
-    header_done = False
+    content_start = 0
 
-    for line in lines:
-        cleaned_line = line.strip()
-        if not header_done:
-            # Check if it's a known metadata key
-            if cleaned_line.startswith("Source:"):
-                metadata["source"] = cleaned_line.replace("Source:", "").strip()
-                continue
-            elif cleaned_line.startswith("Department:"):
-                metadata["department"] = cleaned_line.replace("Department:", "").strip()
-                continue
-            elif cleaned_line.startswith("Effective Date:"):
-                metadata["effective_date"] = cleaned_line.replace(
-                    "Effective Date:", ""
-                ).strip()
-                continue
-            elif cleaned_line.startswith("Access:"):
-                metadata["access"] = cleaned_line.replace("Access:", "").strip()
-                continue
-
-            # Nếu gặp section hoặc một dòng text không phải trống/tên tài liệu -> Bắt đầu coi là content
-            if cleaned_line.startswith("===") or (
-                cleaned_line != "" and not cleaned_line.isupper()
-            ):
-                header_done = True
-                content_lines.append(line)
+    # 1) Tách title (nếu có) ra khỏi header metadata.
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if not re.match(r"^[A-Za-z ]+:", stripped):
+            metadata["title"] = stripped
+            content_start = i + 1
         else:
-            content_lines.append(line)
+            content_start = i
+        break
 
-    cleaned_text = "\n".join(content_lines).strip()
+    # 2) Parse metadata theo key-value trước khi đi vào main content.
+    i = content_start
+    while i < len(lines):
+        cleaned_line = lines[i].strip()
+
+        if cleaned_line.startswith("Source:"):
+            raw_src = cleaned_line.replace("Source:", "").strip()
+            metadata["source"] = raw_src.split("/")[-1].split("\\")[-1]
+            i += 1
+            continue
+        if cleaned_line.startswith("Department:"):
+            metadata["department"] = cleaned_line.replace("Department:", "").strip()
+            i += 1
+            continue
+        if cleaned_line.startswith("Effective Date:"):
+            metadata["effective_date"] = cleaned_line.replace("Effective Date:", "").strip()
+            i += 1
+            continue
+        if cleaned_line.startswith("Access:"):
+            metadata["access"] = cleaned_line.replace("Access:", "").strip()
+            i += 1
+            continue
+
+        # Bỏ qua dòng trống phân tách giữa header và body.
+        if cleaned_line == "":
+            i += 1
+            continue
+
+        break
+
+    # 3) Toàn bộ phần còn lại là main content.
+    main_content = "\n".join(lines[i:]).strip()
 
     # Normalize text: chuẩn hóa khoảng trắng thừa
-    cleaned_text = re.sub(r"\n{3,}", "\n\n", cleaned_text)
+    main_content = re.sub(r"\n{3,}", "\n\n", main_content)
 
     return {
-        "text": cleaned_text,
+        "text": main_content,
+        "main_content": main_content,
         "metadata": metadata,
     }
 
@@ -119,62 +136,155 @@ def preprocess_document(raw_text: str, filepath: str) -> Dict[str, Any]:
 # =============================================================================
 
 
+def recursive_split(
+    text: str, separators: List[str], chunk_size: int, overlap_size: int
+) -> List[str]:
+    """
+    Tùy chỉnh logic Recursive Character Text Splitting tương tự LangChain.
+    Sẽ thử split theo separators (từ thô đến mịn) để tìm điểm ngắt đẹp nhất.
+    """
+    final_chunks = []
+
+    # Base case: text đã đủ nhỏ
+    if len(text) <= chunk_size:
+        return [text]
+
+    # Tìm separator phù hợp nhất
+    separator = separators[-1]  # Mặc định là char cuối (thường là rỗng hoặc space)
+    for s in separators:
+        if s in text:
+            separator = s
+            break
+
+    # Split và đệ quy
+    parts = text.split(separator)
+    current_chunk = ""
+
+    for part in parts:
+        # Nếu gộp part vào current mà vẫn < chunk_size
+        if len(current_chunk) + len(separator) + len(part) <= chunk_size:
+            if current_chunk:
+                current_chunk += separator + part
+            else:
+                current_chunk = part
+        else:
+            # Lưu chunk hiện tại
+            if current_chunk:
+                final_chunks.append(current_chunk)
+
+            # Xử lý overlap: lấy một phần cuối của current_chunk
+            overlap = (
+                current_chunk[-overlap_size:]
+                if len(current_chunk) > overlap_size
+                else ""
+            )
+
+            # Kiểm tra xem part đơn lẻ có quá lớn không? Nếu có thì đệ quy sâu hơn.
+            if len(part) > chunk_size:
+                sub_chunks = recursive_split(
+                    part,
+                    separators[separators.index(separator) + 1 :],
+                    chunk_size,
+                    overlap_size,
+                )
+                final_chunks.extend(sub_chunks)
+                current_chunk = ""  # Sau khi explode part to, reset chunk
+            else:
+                current_chunk = overlap + separator + part if overlap else part
+
+    if current_chunk:
+        final_chunks.append(current_chunk)
+
+    return final_chunks
+
+
 def chunk_document(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Chunk một tài liệu đã preprocess thành danh sách các chunk nhỏ.
+    Section-based chunking: moi section (=== ... ===) thanh 1 chunk.
 
-    Args:
-        doc: Dict với "text" và "metadata" (output của preprocess_document)
-
-    Returns:
-        List các Dict, mỗi dict là một chunk với:
-          - "text": nội dung chunk
-          - "metadata": metadata gốc + "section" của chunk đó
-
-    TODO Sprint 1:
-    1. Split theo heading "=== Section ... ===" hoặc "=== Phần ... ===" trước
-    2. Nếu section quá dài (> CHUNK_SIZE * 4 ký tự), split tiếp theo paragraph
-    3. Thêm overlap: lấy đoạn cuối của chunk trước vào đầu chunk tiếp theo
-    4. Mỗi chunk PHẢI giữ metadata đầy đủ từ tài liệu gốc
-
-    Gợi ý: Ưu tiên cắt tại ranh giới tự nhiên (section, paragraph)
-    thay vì cắt theo token count cứng.
+    Ly do chon chien luoc nay:
+    - Corpus nho (5 docs, ~31 sections, moi section 100-600 chars).
+    - Sections la ranh gioi ngu nghia tu nhien (dieu khoan, quy trinh, FAQ topic).
+    - Giu nguyen cau truc dong goc (bullet points, Q&A) de LLM doc tot hon.
+    - Khong can semantic_split (tiet kiem API, tranh pha huy format).
+    - Prefix "Tai lieu / Muc" giup retrieval biet context cua chunk.
     """
-    text = doc["text"]
+    text = doc.get("main_content", doc["text"])
     base_metadata = doc["metadata"].copy()
+    doc_title = (
+        base_metadata.get("title")
+        or base_metadata.get("source", "")
+        .split("/")[-1]
+        .replace(".md", "")
+        .replace(".pdf", "")
+        .replace(".txt", "")
+        .upper()
+    )
+
+    def split_sections(main_text: str) -> List[Dict[str, str]]:
+        section_pattern = re.compile(r"^===\s*(.+?)\s*===\s*$")
+        lines = main_text.split("\n")
+        sections: List[Dict[str, str]] = []
+        current_title = "general"
+        current_lines: List[str] = []
+
+        for line in lines:
+            match = section_pattern.match(line.strip())
+            if match:
+                if current_lines:
+                    sections.append(
+                        {
+                            "section": current_title,
+                            "content": "\n".join(current_lines).strip(),
+                        }
+                    )
+                current_title = match.group(1).strip()
+                current_lines = []
+                continue
+            current_lines.append(line)
+
+        if current_lines:
+            sections.append(
+                {"section": current_title, "content": "\n".join(current_lines).strip()}
+            )
+
+        return [s for s in sections if s["content"]]
+
+    separators = ["\n\n", "\n", ". ", " ", ""]
+    chunk_chars = CHUNK_SIZE * 4
+    overlap_chars = CHUNK_OVERLAP * 4
+
     chunks = []
+    chunk_idx = 0
+    for sec in split_sections(text):
+        section_name = sec["section"]
+        section_text = sec["content"]
 
-    # TODO: Implement chunking theo section heading
-    # Bước 1: Split theo heading pattern "=== ... ==="
-    sections = re.split(r"(===.*?===)", text)
-
-    current_section = "General"
-    current_section_text = ""
-
-    for part in sections:
-        if re.match(r"===.*?===", part):
-            # Lưu section trước (nếu có nội dung)
-            if current_section_text.strip():
-                section_chunks = _split_by_size(
-                    current_section_text.strip(),
-                    base_metadata=base_metadata,
-                    section=current_section,
-                )
-                chunks.extend(section_chunks)
-            # Bắt đầu section mới
-            current_section = part.strip("= ").strip()
-            current_section_text = ""
+        if len(section_text) <= chunk_chars:
+            parts = [section_text]
         else:
-            current_section_text += part
+            parts = recursive_split(
+                section_text, separators, chunk_chars, overlap_chars
+            )
 
-    # Lưu section cuối cùng
-    if current_section_text.strip():
-        section_chunks = _split_by_size(
-            current_section_text.strip(),
-            base_metadata=base_metadata,
-            section=current_section,
-        )
-        chunks.extend(section_chunks)
+        for content in parts:
+            full_text = (
+                f"Tai lieu: {doc_title}\n"
+                f"Muc: {section_name}\n"
+                f"---\n"
+                f"{content.strip()}"
+            )
+            chunks.append(
+                {
+                    "text": full_text,
+                    "metadata": {
+                        **base_metadata,
+                        "section": section_name,
+                        "index": chunk_idx,
+                    },
+                }
+            )
+            chunk_idx += 1
 
     return chunks
 
@@ -257,15 +367,18 @@ def get_embedding(text: str) -> List[float]:
 
 def build_index(docs_dir: Path = DOCS_DIR, db_dir: Path = CHROMA_DB_DIR) -> None:
     """
-Pipeline hoàn chỉnh: đọc docs → preprocess → chunk → embed → store.
+    Pipeline hoàn chỉnh: đọc docs → preprocess → chunk → embed → store.
     """
     import chromadb
 
     print(f"Đang build index từ: {docs_dir}")
     db_dir.mkdir(parents=True, exist_ok=True)
 
-    # Khởi tạo ChromaDB
     client_db = chromadb.PersistentClient(path=str(db_dir))
+    try:
+        client_db.delete_collection("rag_lab")
+    except Exception:
+        pass
     collection = client_db.get_or_create_collection(
         name="rag_lab", metadata={"hnsw:space": "cosine"}
     )
@@ -400,15 +513,13 @@ def inspect_metadata_coverage(db_dir: Path = CHROMA_DB_DIR) -> None:
 if __name__ == "__main__":
     # Bước 1: Tìm tài liệu
     doc_files = list(DOCS_DIR.glob("*.txt"))
-    print(f"\nTìm thấy {len(doc_files)} tài liệu.")
+    print(f"\nFound {len(doc_files)} docs.")
 
     # Bước 2: Build index
-    print("\n--- Bắt đầu quá trình Indexing ---")
+    print("\n--- Starting Indexing ---")
     build_index()
 
     # Bước 3: Kiểm tra kết quả
     print("\n" + "=" * 60)
-    # print("KIỂM TRA CHẤT LƯỢNG INDEX")
-    # print("="*60)
-    list_chunks()  # Xem thử 3 chunk đầu
+    list_chunks()
     inspect_metadata_coverage()
