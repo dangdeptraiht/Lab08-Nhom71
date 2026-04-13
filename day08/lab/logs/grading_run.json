@@ -1,0 +1,112 @@
+[
+  {
+    "id": "gq01",
+    "question": "SLA xử lý ticket P1 đã thay đổi như thế nào so với phiên bản trước?",
+    "answer": "SLA xử lý ticket P1 đã thay đổi từ phiên bản trước như sau: Thời gian xử lý và khắc phục (resolution) đã được cập nhật từ 6 giờ xuống còn 4 giờ trong phiên bản v2026.1, có hiệu lực từ ngày 15 tháng 1 năm 2026 [1] (Trích dẫn: \"Cập nhật SLA P1 resolution từ 6 giờ xuống 4 giờ.\").",
+    "sources": [
+      "sla-p1-2026.pdf"
+    ],
+    "chunks_retrieved": 2,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:20:31.460076"
+  },
+  {
+    "id": "gq02",
+    "question": "Khi làm việc remote, tôi phải dùng VPN và được kết nối trên tối đa bao nhiêu thiết bị?",
+    "answer": "Khi làm việc remote, bạn phải sử dụng VPN để kết nối với hệ thống nội bộ. Mỗi tài khoản được kết nối VPN trên tối đa 2 thiết bị cùng lúc [1] (Trích dẫn: \"Mỗi tài khoản được kết nối VPN trên tối đa 2 thiết bị cùng lúc.\").",
+    "sources": [
+      "helpdesk-faq.md"
+    ],
+    "chunks_retrieved": 2,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:20:58.008707"
+  },
+  {
+    "id": "gq03",
+    "question": "Đơn hàng mua trong chương trình Flash Sale và đã kích hoạt sản phẩm có được hoàn tiền không?",
+    "answer": "Đơn hàng mua trong chương trình Flash Sale và đã kích hoạt sản phẩm sẽ không được hoàn tiền. Theo chính sách hoàn tiền, có một số ngoại lệ không được hoàn tiền, trong đó có \"Đơn hàng đã áp dụng mã giảm giá đặc biệt theo chương trình khuyến mãi Flash Sale\" và \"Sản phẩm đã được kích hoạt hoặc đăng ký tài khoản\" [1] (Trích dẫn: \"Ngoại lệ không được hoàn tiền: ... Đơn hàng đã áp dụng mã giảm giá đặc biệt theo chương trình khuyến mãi Flash Sale.\").",
+    "sources": [
+      "refund-v4.pdf"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:21:24.688359"
+  },
+  {
+    "id": "gq04",
+    "question": "Nếu chọn nhận store credit thay vì hoàn tiền, tôi được bao nhiêu phần trăm so với số tiền gốc?",
+    "answer": "Nếu bạn chọn nhận store credit thay vì hoàn tiền, bạn sẽ nhận được giá trị 110% so với số tiền gốc. Điều này có nghĩa là bạn sẽ nhận được nhiều hơn 10% so với số tiền bạn đã chi trả ban đầu. Cụ thể, chính sách hoàn tiền quy định rằng \"khách hàng có thể chọn nhận store credit thay thế với giá trị 110% so với số tiền hoàn\" [1] (Trích dẫn: \"Hoàn tiền qua credit nội bộ (store credit): khách hàng có thể chọn nhận store credit thay thế với giá trị 110% so với số tiền hoàn.\").",
+    "sources": [
+      "refund-v4.pdf"
+    ],
+    "chunks_retrieved": 5,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:21:52.454673"
+  },
+  {
+    "id": "gq05",
+    "question": "Contractor từ bên ngoài công ty có thể được cấp quyền Admin Access không? Nếu có, cần bao nhiêu ngày và có yêu cầu đặc biệt gì?",
+    "answer": "Có, contractor từ bên ngoài công ty có thể được cấp quyền Admin Access. Quy trình yêu cầu cấp quyền cho contractor tương tự như cho nhân viên, bao gồm việc tạo Access Request ticket trên Jira và phê duyệt từ Line Manager [2] (Trích dẫn: \"Bước 1: Nhân viên tạo Access Request ticket trên Jira (project IT-ACCESS).\"). \n\nThời gian cấp quyền có thể mất tối đa 1 ngày làm việc để Line Manager phê duyệt yêu cầu [2] (Trích dẫn: \"Bước 2: Line Manager phê duyệt yêu cầu trong 1 ngày làm việc.\"). \n\nNgoài ra, trong trường hợp khẩn cấp, quyền tạm thời có thể được cấp ngay lập tức bởi IT Admin sau khi được Tech Lead phê duyệt bằng lời, nhưng chỉ có hiệu lực tối đa 24 giờ [1] (Trích dẫn: \"On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời.\"). \n\nDo đó, yêu cầu đặc biệt là cần có sự phê duyệt từ Line Manager hoặc Tech Lead tùy thuộc vào tình huống cấp quyền.",
+    "sources": [
+      "access-control-sop.md"
+    ],
+    "chunks_retrieved": 5,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:22:18.148711"
+  },
+  {
+    "id": "gq06",
+    "question": "Lúc 2 giờ sáng xảy ra sự cố P1, on-call engineer cần cấp quyền tạm thời cho một engineer xử lý incident. Quy trình cụ thể như thế nào và quyền này tồn tại bao lâu?",
+    "answer": "Khi xảy ra sự cố P1 lúc 2 giờ sáng, quy trình cấp quyền tạm thời cho một engineer để xử lý incident được thực hiện như sau:\n\n1. **Phê duyệt**: On-call IT Admin có thể cấp quyền tạm thời cho engineer sau khi nhận được sự phê duyệt bằng lời từ Tech Lead.\n2. **Thời gian cấp quyền**: Quyền tạm thời này có thể tồn tại tối đa trong 24 giờ. Sau khoảng thời gian này, nếu không có ticket chính thức được tạo ra, quyền sẽ bị thu hồi tự động.\n3. **Ghi log**: Tất cả quyền tạm thời phải được ghi log vào hệ thống Security Audit để đảm bảo tính minh bạch và theo dõi.\n\nQuy trình này được quy định rõ ràng trong tài liệu Access Control SOP, cụ thể là trong phần về escalation khi cần thay đổi quyền hệ thống: \"On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời\" [3] (Trích dẫn: \"Quy trình escalation khẩn cấp: 1. On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời.\").",
+    "sources": [
+      "access-control-sop.md"
+    ],
+    "chunks_retrieved": 4,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:22:45.181923"
+  },
+  {
+    "id": "gq07",
+    "question": "Công ty sẽ phạt bao nhiêu nếu team IT vi phạm cam kết SLA P1?",
+    "answer": "Tài liệu hiện tại không đề cập đến mức phạt cụ thể nếu team IT vi phạm cam kết SLA P1.",
+    "sources": [
+      "Không có"
+    ],
+    "chunks_retrieved": 5,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:23:10.305427"
+  },
+  {
+    "id": "gq08",
+    "question": "Nhân viên phải báo trước bao nhiêu ngày để xin nghỉ phép năm? Con số này có giống với số ngày cần giấy tờ khi nghỉ ốm không?",
+    "answer": "Nhân viên phải báo trước ít nhất 3 ngày làm việc để xin nghỉ phép năm [1] (Trích dẫn: \"Nhân viên gửi yêu cầu nghỉ phép qua hệ thống HR Portal... ít nhất 3 ngày làm việc trước ngày nghỉ.\"). \n\nĐối với nghỉ ốm, nhân viên cần thông báo cho Line Manager trước 9:00 sáng ngày nghỉ, và nếu nghỉ trên 3 ngày liên tiếp thì cần có giấy tờ y tế từ bệnh viện [2] (Trích dẫn: \"Nếu nghỉ trên 3 ngày liên tiếp: Cần giấy tờ y tế từ bệnh viện.\"). \n\nVì vậy, số ngày báo trước để xin nghỉ phép năm không giống với số ngày cần giấy tờ khi nghỉ ốm.",
+    "sources": [
+      "leave-policy-2026.pdf"
+    ],
+    "chunks_retrieved": 2,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:23:35.605694"
+  },
+  {
+    "id": "gq09",
+    "question": "Mật khẩu tài khoản công ty cần đổi định kỳ không? Nếu có, hệ thống sẽ nhắc nhở trước bao nhiêu ngày và đổi qua đâu?",
+    "answer": "Có, mật khẩu tài khoản công ty cần được thay đổi định kỳ. Cụ thể, mật khẩu phải được thay đổi mỗi 90 ngày và hệ thống sẽ nhắc nhở người dùng 7 ngày trước khi mật khẩu hết hạn [1] (Trích dẫn: \"Mật khẩu phải được thay đổi mỗi 90 ngày. Hệ thống sẽ nhắc nhở 7 ngày trước khi hết hạn.\"). Người dùng có thể đổi mật khẩu qua portal SSO tại địa chỉ https://sso.company.internal/reset.",
+    "sources": [
+      "helpdesk-faq.md"
+    ],
+    "chunks_retrieved": 3,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:24:01.707515"
+  },
+  {
+    "id": "gq10",
+    "question": "Chính sách hoàn tiền hiện tại áp dụng cho đơn hàng đặt trước ngày 01/02/2026 không?",
+    "answer": "Chính sách hoàn tiền hiện tại không áp dụng cho các đơn hàng đặt trước ngày 01/02/2026. Theo thông tin trong tài liệu, \"Chính sách này áp dụng cho tất cả các đơn hàng được đặt trên hệ thống nội bộ kể từ ngày 01/02/2026. Các đơn hàng đặt trước ngày có hiệu lực sẽ áp dụng theo chính sách hoàn tiền phiên bản 3\" [1] (Trích dẫn: \"Chính sách này áp dụng cho tất cả các đơn hàng được đặt trên hệ thống nội bộ kể từ ngày 01/02/2026.\").",
+    "sources": [
+      "refund-v4.pdf"
+    ],
+    "chunks_retrieved": 5,
+    "retrieval_mode": "hybrid",
+    "timestamp": "2026-04-13T17:24:28.112754"
+  }
+]
