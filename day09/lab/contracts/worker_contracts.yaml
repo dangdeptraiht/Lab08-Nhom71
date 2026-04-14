@@ -96,7 +96,7 @@ retrieval_worker:
     - "Score phải là float trong khoảng [0, 1]"
     - "Stateless: không đọc hoặc ghi state ngoài những gì được khai báo ở trên"
   actual_implementation:
-    status: "TODO Sprint 2"  # Update to "done" khi xong
+    status: "DONE Sprint 2"  # Update to "done" khi xong
     notes: ""
 
 # ─────────────────────────────────────────────
@@ -166,7 +166,7 @@ policy_tool_worker:
     - "Phải ghi tên MCP tool đã gọi vào mcp_tools_used"
     - "Không được tự bịa policy rules không có trong tài liệu"
   actual_implementation:
-    status: "TODO Sprint 2"
+    status: "DONE Sprint 2"
     notes: ""
 
 # ─────────────────────────────────────────────
@@ -214,7 +214,7 @@ synthesis_worker:
     - "confidence < 0.4 → khuyến khích set hitl_triggered=True"
     - "Không được dùng kiến thức ngoài context được cung cấp"
   actual_implementation:
-    status: "TODO Sprint 2"
+    status: "DONE Sprint 2"
     notes: ""
 
 # ─────────────────────────────────────────────
@@ -224,9 +224,16 @@ synthesis_worker:
 mcp_server:
   name: mcp_server
   file: mcp_server.py
-  description: "Mock MCP Server expose tools cho workers qua dispatch_tool()."
+  description: >
+    Real HTTP MCP Server (Sprint 3 Advanced Mode).
+    FastAPI app running on http://localhost:8765.
+    Endpoints: POST /tools/list, POST /tools/call.
+    Client: mcp_client.py -- tries HTTP first, falls back to local dispatch.
+  transport: "HTTP (FastAPI + uvicorn) with local in-process fallback"
+  server_url: "http://localhost:8765"
   tools:
     search_kb:
+      description: "Semantic search via ChromaDB"
       input:
         query: string  # required
         top_k: integer  # default: 3
@@ -235,8 +242,9 @@ mcp_server:
         sources: array
         total_found: integer
     get_ticket_info:
+      description: "Jira ticket lookup (mock data)"
       input:
-        ticket_id: string  # required (e.g., "P1-LATEST", "IT-1234")
+        ticket_id: string  # required (e.g., "P1-LATEST", "IT-1234", "IT-9847")
       output:
         ticket_id: string
         priority: string
@@ -246,8 +254,9 @@ mcp_server:
         sla_deadline: string
         notifications_sent: array
     check_access_permission:
+      description: "Access Control SOP checker"
       input:
-        access_level: integer  # 1, 2, hoặc 3
+        access_level: integer  # 1, 2, or 3
         requester_role: string
         is_emergency: boolean  # default: false
       output:
@@ -257,6 +266,7 @@ mcp_server:
         notes: array
         source: string
     create_ticket:
+      description: "Create Jira ticket (MOCK)"
       input:
         priority: string  # P1, P2, P3, P4
         title: string
@@ -265,10 +275,50 @@ mcp_server:
         ticket_id: string
         url: string
         created_at: string
+    validate_refund_eligibility:
+      description: >
+        [NEW Sprint 3] Compute refund eligibility from order_date + request_date.
+        Handles Flash Sale exception, digital product exception, Policy v3/v4
+        temporal scoping, and 7-working-day window. Prevents false positives
+        from context_text keyword scanning.
+      input:
+        order_date: string    # YYYY-MM-DD or DD/MM/YYYY -- required
+        request_date: string  # YYYY-MM-DD or DD/MM/YYYY -- required
+        product_type: string  # physical | digital | license_key | subscription
+        is_flash_sale: boolean
+      output:
+        eligible: boolean | null   # null means policy_v3 applies (unknown)
+        exception_type: string | null
+        reason: string
+        days_elapsed: integer
+        within_window: boolean
+        policy_version: string
+        source: string
+    get_escalation_chain:
+      description: >
+        [NEW Sprint 3] Given ticket priority and minutes elapsed, compute
+        full SLA escalation status: who to notify, channels, next deadlines,
+        whether first_response SLA is breached.
+      input:
+        ticket_priority: string  # P1 or P2 -- required
+        minutes_elapsed: integer # minutes since ticket created -- required
+        current_time: string     # ISO timestamp (optional)
+      output:
+        should_escalate: boolean
+        escalation_target: string | null
+        notification_channels: array
+        first_response_breached: boolean
+        resolution_deadline: string
+        remaining_minutes_to_resolution: integer
+        next_stakeholder_update: string
+        source: string
   constraints:
-    - "dispatch_tool() phải trả về error dict nếu tool không tồn tại"
-    - "list_tools() phải trả về đúng format MCP tool schema"
-    - "Không được raise exception ra ngoài dispatch_tool()"
+    - "dispatch_tool() must return error dict if tool not found"
+    - "list_tools() must return MCP tool schema format"
+    - "No exceptions propagate out of dispatch_tool()"
+    - "HTTP /tools/call response follows MCP content array format"
+    - "mcp_client.py falls back to local dispatch if HTTP server not running"
   actual_implementation:
-    status: "TODO Sprint 3"
-    notes: ""
+    status: "DONE Sprint 3 (Advanced)"
+    mode: "HTTP MCP server via FastAPI + uvicorn. Start: python mcp_server.py"
+    bonus: "+2 (real HTTP server, not mock class)"
