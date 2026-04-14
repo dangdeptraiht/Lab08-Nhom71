@@ -154,7 +154,7 @@ def run(state: dict) -> dict:
 
     state["workers_called"].append(WORKER_NAME)
 
-    # Log worker IO (theo contract)
+    # Log worker IO
     worker_io = {
         "worker": WORKER_NAME,
         "input": {"task": task, "top_k": top_k},
