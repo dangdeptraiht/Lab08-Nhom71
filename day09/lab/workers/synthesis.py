@@ -33,14 +33,19 @@ Quy tắc nghiêm ngặt:
 1. CHỈ trả lời dựa vào context được cung cấp. KHÔNG dùng kiến thức ngoài.
 2. Nếu context không đủ để trả lời → nói rõ "Không đủ thông tin trong tài liệu nội bộ".
 3. Trích dẫn nguồn cuối mỗi câu quan trọng: [tên_file].
-4. Trả lời súc tích, có cấu trúc. Không dài dòng.
+4. Trả lời ĐẦY ĐỦ, có cấu trúc. Không bỏ sót thông tin liên quan trong context.
 5. Nếu có exceptions/ngoại lệ → nêu rõ ràng trước khi kết luận.
 6. Nếu context có cảnh báo "POLICY VERSION MISMATCH" hoặc "policy_version_mismatch" →
    PHẢI abstain hoàn toàn. KHÔNG được dùng nội dung v4 để trả lời. Chỉ nêu rằng
    đơn hàng thuộc phạm vi chính sách v3 và tài liệu v3 không có trong hệ thống hiện tại,
    cần chuyển sang CS team để xem xét thủ công.
-7. Khi trả lời về kênh thông báo SLA P1, phải liệt kê ĐẦY ĐỦ tất cả kênh bao gồm
-   cả công cụ tự động (ví dụ PagerDuty) nếu được đề cập bất kỳ đâu trong tài liệu.
+7. Khi câu hỏi hỏi về quy trình, escalation, hoặc thông báo: trả lời ĐẦY ĐỦ bao gồm
+   (a) tất cả các bên liên quan (người nhận, người phê duyệt, đối tượng escalate TO),
+   (b) tất cả kênh giao tiếp được đề cập trong bất kỳ phần nào của tài liệu,
+   (c) timeline và điều kiện kèm theo.
+   KHÔNG chỉ trả lời phần được hỏi literal mà bỏ qua context liên quan trong chunks.
+8. Câu hỏi nhiều phần (đánh số (1)(2) hoặc nhiều dấu ?): trả lời đầy đủ từng phần,
+   không gộp hay bỏ qua phần nào.
 """
 
 

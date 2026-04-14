@@ -104,7 +104,6 @@ def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
     Returns:
         list of {"text": str, "source": str, "score": float, "metadata": dict}
     """
-    # TODO: Implement dense retrieval
     embed = _get_embedding_fn()
     query_embedding = embed(query)
 
@@ -132,8 +131,84 @@ def retrieve_dense(query: str, top_k: int = DEFAULT_TOP_K) -> list:
 
     except Exception as e:
         print(f"⚠️  ChromaDB query failed: {e}")
-        # Fallback: return empty (abstain)
         return []
+
+
+def _split_sub_queries(query: str) -> list:
+    """
+    Tách query thành sub-queries khi phát hiện nhiều phần độc lập.
+
+    Heuristics (không hardcode domain):
+    - Pattern "(1) ... (2) ..." hoặc "1. ... 2. ..."
+    - Nhiều dấu "?" (multi-question)
+    - Liên kết "và" hoặc "and" giữa hai cụm dài (>30 ký tự mỗi bên)
+
+    Trả về list sub-queries. Nếu không detect multi-part, trả về [query].
+    """
+    import re
+
+    # Loại bỏ trailing/leading connectors khỏi mỗi phần
+    _STRIP_WORDS = re.compile(
+        r'^(va |và |and |,\s*va |,\s*và |,\s*and )|( va$| và$| and$|, va$|, và$)',
+        re.IGNORECASE
+    )
+
+    def _clean(s: str) -> str:
+        return _STRIP_WORDS.sub("", s).strip(" ,.:")
+
+    # Pattern: (1)...(2)... — split on the numbered markers, keep each segment
+    numbered_parts = re.split(r'\s*\(\d+\)\s*', query)
+    numbered_parts = [_clean(s) for s in numbered_parts if len(_clean(s)) > 25]
+    if len(numbered_parts) >= 2:
+        return numbered_parts
+
+    # Nhiều câu hỏi (>=2 dấu ?)
+    questions = [_clean(s) for s in query.split("?") if len(_clean(s)) > 20]
+    if len(questions) >= 2:
+        return [q + "?" for q in questions]
+
+    # "và" / "and" nối hai phần đủ dài
+    for sep in [" và ", " and "]:
+        parts = query.split(sep)
+        if len(parts) == 2 and all(len(_clean(p)) > 30 for p in parts):
+            return [_clean(p) for p in parts]
+
+    return [query]
+
+
+def retrieve_multi_query(query: str, top_k: int = DEFAULT_TOP_K) -> list:
+    """
+    Multi-query retrieval: tự động detect query nhiều phần, retrieve riêng cho
+    mỗi sub-query rồi merge + deduplicate.
+
+    Lợi ích: query multi-hop (e.g. "SLA P1 notification VÀ Level 2 access") không
+    bị một embedding vector đại diện kém cho cả hai topic → mỗi sub-query nhận
+    top_k chunks riêng, tổng coverage tốt hơn.
+
+    Returns:
+        list of {"text", "source", "score", "metadata"}, deduplicated, sorted by score desc.
+    """
+    sub_queries = _split_sub_queries(query)
+
+    if len(sub_queries) == 1:
+        return retrieve_dense(query, top_k=top_k)
+
+    # Mỗi sub-query nhận top_k chunks riêng để đảm bảo coverage đầy đủ.
+    # Deduplication xử lý trùng lặp.
+    seen_texts: set = set()
+    merged: list = []
+
+    for sub_q in sub_queries:
+        sub_chunks = retrieve_dense(sub_q, top_k=top_k)
+        for chunk in sub_chunks:
+            key = chunk["text"][:80]
+            if key not in seen_texts:
+                seen_texts.add(key)
+                merged.append(chunk)
+
+    # Sort by score descending
+    merged.sort(key=lambda c: c["score"], reverse=True)
+    return merged
 
 
 def run(state: dict) -> dict:
@@ -163,7 +238,7 @@ def run(state: dict) -> dict:
     }
 
     try:
-        chunks = retrieve_dense(task, top_k=top_k)
+        chunks = retrieve_multi_query(task, top_k=top_k)
 
         sources = list({c["source"] for c in chunks})
 
