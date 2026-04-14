@@ -46,7 +46,9 @@ JUDGE_MODEL = "gpt-4o-mini"
 # =============================================================================
 
 TEST_QUESTIONS_PATH = Path(__file__).parent / "data" / "test_questions.json"
+GRADING_QUESTIONS_PATH = Path(__file__).parent / "data" / "grading_questions.json"
 RESULTS_DIR = Path(__file__).parent / "results"
+LOGS_DIR = Path(__file__).parent / "logs"
 
 # Cấu hình baseline (Sprint 2)
 BASELINE_CONFIG = {
@@ -84,6 +86,7 @@ def score_with_llm(system_prompt: str, user_content: str) -> Dict[str, Any]:
             ],
             temperature=0,
             response_format={"type": "json_object"},
+            timeout=45,
         )
         data = json.loads(response.choices[0].message.content)
         return {
@@ -95,23 +98,63 @@ def score_with_llm(system_prompt: str, user_content: str) -> Dict[str, Any]:
 
 
 def score_faithfulness(
+    query: str,
     answer: str,
     chunks_used: List[Dict[str, Any]],
+    expected_sources: List[str],
+    expected_answer: str,
 ) -> Dict[str, Any]:
-    """Faithfulness: Answer must be grounded in chunks."""
+    """
+    Faithfulness: Answer must be supported by context.
+    Abstain-aware: if the expected_sources is empty (insufficient-context question),
+    a correct abstention should score high; fabricating specifics should score low.
+    """
     context = "\n---\n".join([c["text"] for c in chunks_used])
-    system_prompt = "You are a strict judge. Rate faithfulness on 1-5. 5=completely derived from context, 1=hallucinated. Output JSON: {'score': int, 'reason': str}"
-    user_content = f"CONTEXT:\n{context}\n\nANSWER:\n{answer}"
+    system_prompt = (
+        "You are a strict RAG judge.\n"
+        "Rate faithfulness on 1-5.\n"
+        "Key rules:\n"
+        "- Faithfulness measures whether the answer's factual claims are supported by CONTEXT.\n"
+        "- If expected_sources is empty, the correct behavior is to abstain and NOT invent details.\n"
+        "- In abstain cases, an abstention like 'tài liệu không đề cập/không đủ dữ liệu' is faithful.\n"
+        "- Using vaguely related context to produce a confident explanation for a missing fact is NOT faithful.\n"
+        "Output JSON: {'score': int, 'reason': str}"
+    )
+    user_content = (
+        f"QUERY:\n{query}\n\n"
+        f"EXPECTED_SOURCES_EMPTY:\n{str(not bool(expected_sources))}\n\n"
+        f"EXPECTED_ANSWER:\n{expected_answer}\n\n"
+        f"CONTEXT:\n{context}\n\n"
+        f"ANSWER:\n{answer}"
+    )
     return score_with_llm(system_prompt, user_content)
 
 
 def score_answer_relevance(
     query: str,
     answer: str,
+    expected_sources: List[str],
+    expected_answer: str,
 ) -> Dict[str, Any]:
-    """Answer Relevance: Does the answer address the user query?"""
-    system_prompt = "Rate answer relevance on 1-5. 5=perfectly addresses the query, 1=off-topic. Output JSON: {'score': int, 'reason': str}"
-    user_content = f"QUERY: {query}\nANSWER: {answer}"
+    """
+    Answer Relevance: Does the answer address the user query?
+    Abstain-aware: if expected_sources is empty, abstaining IS relevant.
+    """
+    system_prompt = (
+        "Rate answer relevance on 1-5.\n"
+        "5=best possible response for the query given the docs; 1=off-topic.\n"
+        "Rules:\n"
+        "- If expected_sources is empty (insufficient-context question), a correct abstention is highly relevant.\n"
+        "- In abstain cases, do NOT penalize for not providing the missing fact.\n"
+        "- If the answer invents a specific policy/number/process not in docs, relevance should be low even if it sounds helpful.\n"
+        "Output JSON: {'score': int, 'reason': str}"
+    )
+    user_content = (
+        f"QUERY:\n{query}\n\n"
+        f"EXPECTED_SOURCES_EMPTY:\n{str(not bool(expected_sources))}\n\n"
+        f"EXPECTED_ANSWER:\n{expected_answer}\n\n"
+        f"ANSWER:\n{answer}"
+    )
     return score_with_llm(system_prompt, user_content)
 
 
@@ -168,15 +211,97 @@ def score_context_recall(
     }
 
 
+def score_abstain_aware(
+    query: str,
+    answer: str,
+    expected_sources: List[str],
+) -> Optional[Dict[str, Any]]:
+    """
+    Additional scoring signal for abstain cases.
+    If expected_sources is empty, the 'correct' behavior is to abstain (no hallucination).
+    Returns None for non-abstain test questions.
+    """
+    if expected_sources:
+        return None
+    a = (answer or "").lower()
+    abstain_like = ("không" in a and "đề cập" in a) or ("không đủ dữ liệu" in a) or ("tài liệu" in a and "không" in a)
+    # crude hallucination heuristic: if answer contains many numbers/dates but should abstain, flag risk
+    has_numbers = bool(re.search(r"\d", a))
+    if abstain_like and not has_numbers:
+        return {"score": 5, "notes": "Abstain behavior detected for insufficient-context question."}
+    if abstain_like and has_numbers:
+        return {"score": 2, "notes": "Abstain-like but includes numbers; potential hallucination."}
+    # not abstaining at all
+    return {"score": 1, "notes": "Did not abstain on insufficient-context question (hallucination risk)."}
+
+
+def run_grading_log(
+    config: Dict[str, Any],
+    output_path: Path = LOGS_DIR / "grading_run.json",
+    timestamp_base: Optional[datetime] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Run grading_questions.json and write logs/grading_run.json in required format.
+    """
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(GRADING_QUESTIONS_PATH, "r", encoding="utf-8") as f:
+        questions = json.load(f)
+
+    log_rows: List[Dict[str, Any]] = []
+    base = timestamp_base or datetime.now()
+    for i, q in enumerate(questions):
+        qid = q["id"]
+        query = q["question"]
+        result = rag_answer(
+            query=query,
+            retrieval_mode=config.get("retrieval_mode", "hybrid"),
+            top_k_search=config.get("top_k_search", 20),
+            top_k_select=config.get("top_k_select", 5),
+            use_rerank=config.get("use_rerank", True),
+            verbose=False,
+        )
+        ts = (base.replace(second=0, microsecond=0) + (datetime.min - datetime.min) + (i * (base - base))).isoformat()
+        # Note: keep timestamp string simple; external scripts may override later.
+        log_rows.append(
+            {
+                "id": qid,
+                "question": query,
+                "answer": result["answer"],
+                "sources": result["sources"],
+                "chunks_retrieved": len(result["chunks_used"]),
+                "retrieval_mode": result["config"]["retrieval_mode"],
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+
+    output_path.write_text(json.dumps(log_rows, ensure_ascii=False, indent=2), encoding="utf-8")
+    return log_rows
+
+
 def score_completeness(
     query: str,
     answer: str,
     expected_answer: str,
+    expected_sources: List[str],
 ) -> Dict[str, Any]:
-    """Completeness: Does it cover all key points from expected answer?"""
-    system_prompt = "Compare model answer with expected answer. Rate completeness 1-5. Output JSON: {'score': int, 'reason': str}"
+    """
+    Completeness: Does it cover key points from expected answer (not verbosity).
+    Abstain-aware: if expected_sources is empty, completeness = does it clearly abstain
+    and (optionally) provide a safe next step like contacting the right team.
+    """
+    system_prompt = (
+        "Compare MODEL ANSWER with EXPECTED ANSWER.\n"
+        "Rate completeness 1-5 based on covering the key points, not length.\n"
+        "Rules:\n"
+        "- If expected_sources is empty, completeness is about a clear abstention + safe next-step guidance.\n"
+        "- Do NOT reward invented specifics.\n"
+        "Output JSON: {'score': int, 'reason': str}"
+    )
     user_content = (
-        f"QUERY: {query}\nMODEL ANSWER: {answer}\nEXPECTED: {expected_answer}"
+        f"QUERY:\n{query}\n\n"
+        f"EXPECTED_SOURCES_EMPTY:\n{str(not bool(expected_sources))}\n\n"
+        f"EXPECTED:\n{expected_answer}\n\n"
+        f"MODEL ANSWER:\n{answer}"
     )
     return score_with_llm(system_prompt, user_content)
 
@@ -254,10 +379,10 @@ def run_scorecard(
             chunks_used = []
 
         # --- Chấm điểm ---
-        faith = score_faithfulness(answer, chunks_used)
-        relevance = score_answer_relevance(query, answer)
+        faith = score_faithfulness(query, answer, chunks_used, expected_sources, expected_answer)
+        relevance = score_answer_relevance(query, answer, expected_sources, expected_answer)
         recall = score_context_recall(chunks_used, expected_sources)
-        complete = score_completeness(query, answer, expected_answer)
+        complete = score_completeness(query, answer, expected_answer, expected_sources)
 
         row = {
             "id": question_id,

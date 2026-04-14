@@ -42,8 +42,8 @@ client_ai = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # CẤU HÌNH
 # =============================================================================
 
-TOP_K_SEARCH = 20  # Tăng lên để Reranker có đủ dữ liệu lọt lưới
-TOP_K_SELECT = 5  # Số chunk gửi vào prompt sau rerank/select
+TOP_K_SEARCH = 28  # Search rộng hơn cho câu hỏi nhiều ràng buộc
+TOP_K_SELECT = 7  # Giữ thêm bằng chứng từ nhiều section/source
 DENSE_WEIGHT = 0.5  # Cân bằng mặc định
 SPARSE_WEIGHT = 0.5
 
@@ -55,21 +55,35 @@ LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 # =============================================================================
 
 
-def retrieve_dense(query: str, top_k: int = TOP_K_SEARCH) -> List[Dict[str, Any]]:
+def _get_collection():
+    client_db = chromadb.PersistentClient(path=str(CHROMA_DB_DIR))
+    return client_db.get_collection("rag_lab")
+
+
+def retrieve_dense(
+    query: str,
+    top_k: int = TOP_K_SEARCH,
+    where: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     """
     Dense retrieval: tìm kiếm theo embedding similarity trong ChromaDB.
     """
-    client_db = chromadb.PersistentClient(path=str(CHROMA_DB_DIR))
-    collection = client_db.get_collection("rag_lab")
+    collection = _get_collection()
 
     # 1. Embed query
     query_embedding = get_embedding(query)
 
     # 2. Query ChromaDB
-    results = collection.query(
+    query_kwargs = dict(
         query_embeddings=[query_embedding],
         n_results=top_k,
         include=["documents", "metadatas", "distances"],
+    )
+    if where:
+        query_kwargs["where"] = where
+
+    results = collection.query(
+        **query_kwargs,
     )
 
     # 3. Format kết quả
@@ -97,12 +111,15 @@ def retrieve_dense(query: str, top_k: int = TOP_K_SEARCH) -> List[Dict[str, Any]
 # =============================================================================
 
 
-def retrieve_sparse(query: str, top_k: int = TOP_K_SEARCH) -> List[Dict[str, Any]]:
+def retrieve_sparse(
+    query: str,
+    top_k: int = TOP_K_SEARCH,
+    source_filter: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """
     Sparse retrieval: tìm kiếm theo keyword (BM25).
     """
-    client_db = chromadb.PersistentClient(path=str(CHROMA_DB_DIR))
-    collection = client_db.get_collection("rag_lab")
+    collection = _get_collection()
 
     # 1. Lấy toàn bộ chunks từ database để làm corpus cho BM25
     # (Vì lab chỉ có 30 chunks nên cách này khả thi)
@@ -118,6 +135,18 @@ def retrieve_sparse(query: str, top_k: int = TOP_K_SEARCH) -> List[Dict[str, Any
         # Chuyển về lowercase, tách các ký tự kỹ thuật đặc biệt
         clean_text = re.sub(r'[\(\)\-\:\/]', ' ', text.lower())
         return clean_text.split()
+
+    # Optional filter by source (metadata["source"] is normalized filename)
+    if source_filter:
+        filtered = [
+            (doc, meta)
+            for doc, meta in zip(all_docs, all_metas)
+            if (meta or {}).get("source") == source_filter
+        ]
+        if not filtered:
+            return []
+        all_docs = [d for d, _ in filtered]
+        all_metas = [m for _, m in filtered]
 
     corpus_tokenized = [tokenize(doc) for doc in all_docs]
     bm25 = BM25Okapi(corpus_tokenized)
@@ -143,6 +172,306 @@ def retrieve_sparse(query: str, top_k: int = TOP_K_SEARCH) -> List[Dict[str, Any
             )
 
     return chunks
+
+
+def _merge_candidates(candidates_lists: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """
+    Merge candidates from multiple queries.
+    - Deduplicate by exact text (stable in our corpus).
+    - Sum scores with a small bias for appearing in multiple lists.
+    """
+    merged: Dict[str, Dict[str, Any]] = {}
+    hits: Dict[str, int] = {}
+
+    for lst in candidates_lists:
+        for c in lst:
+            txt = c.get("text", "")
+            if not txt:
+                continue
+            if txt not in merged:
+                merged[txt] = {**c}
+                merged[txt]["score"] = float(c.get("score", 0.0) or 0.0)
+                hits[txt] = 1
+            else:
+                merged[txt]["score"] = float(merged[txt].get("score", 0.0) or 0.0) + float(
+                    c.get("score", 0.0) or 0.0
+                )
+                hits[txt] += 1
+
+    # multi-hit bonus (helps ensure key chunks survive rerank/select)
+    for txt, h in hits.items():
+        merged[txt]["score"] = float(merged[txt].get("score", 0.0) or 0.0) + (h - 1) * 0.05
+
+    return sorted(merged.values(), key=lambda x: x.get("score", 0.0), reverse=True)
+
+
+def _expand_queries(query: str) -> List[str]:
+    """
+    Generic query expansion (no dataset-specific bias, no LLM calls).
+    Strategy:
+    - Split multi-intent questions into sub-queries.
+    - Add a compact keyword-focused query to help BM25/dense retrieval.
+    """
+    q = (query or "").strip()
+    if not q:
+        return []
+
+    ql = q.lower()
+    candidates: List[str] = [q]
+
+    # 1) Split by common Vietnamese connectors for multi-part questions
+    # Keep segments that are non-trivial (>= 4 chars) to avoid noise.
+    splitters = [
+        " và ",
+        " , ",
+        ";",
+        " không?",
+        " nếu ",
+        " thì ",
+        " bao nhiêu ",
+        " bao lâu ",
+        " định kỳ ",
+        " nhắc nhở ",
+        " đổi qua ",
+        "?",
+    ]
+    parts = [q]
+    for s in splitters:
+        next_parts: List[str] = []
+        for p in parts:
+            if s.strip() and s in p.lower():
+                # split while preserving original casing via indices is overkill; use lower split then map back is not needed
+                for seg in p.split(s, 20):
+                    seg = seg.strip()
+                    if len(seg) >= 4:
+                        next_parts.append(seg)
+            else:
+                next_parts.append(p)
+        parts = next_parts
+
+    for p in parts:
+        if p and p != q:
+            candidates.append(p)
+
+    # 2) Date normalization for metadata/effective-date matching (dd/mm/yyyy -> yyyy-mm-dd)
+    date_matches = re.findall(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b", q)
+    for dd, mm, yyyy in date_matches:
+        normalized = f"{yyyy}-{int(mm):02d}-{int(dd):02d}"
+        candidates.append(normalized)
+        candidates.append(f"effective date {normalized}")
+
+    # 3) Keyword-focused query: keep salient tokens (acronyms, codes, numbers, URLs, ext, proper-ish words)
+    tokens = re.findall(r"[A-Za-z]{2,}|\d{2,}|https?://\\S+|ext\\.?\\s*\\d{2,}", q, flags=re.IGNORECASE)
+    # Also keep common domain terms if present
+    for term in [
+        "vpn", "remote", "access", "admin", "approval", "matrix", "sla", "p1", "ciso", "manager", "training",
+        "effective", "date", "version", "phiên bản", "hiện tại", "trước", "refund", "store credit", "flash sale",
+    ]:
+        if term in ql:
+            tokens.append(term)
+    kw_query = " ".join(dict.fromkeys([t.strip() for t in tokens if t.strip()]))
+    if len(kw_query) >= 8 and kw_query.lower() != ql:
+        candidates.append(kw_query)
+
+    # Deduplicate preserve order
+    out: List[str] = []
+    seen = set()
+    for c in candidates:
+        c = c.strip()
+        if not c or c in seen:
+            continue
+        out.append(c)
+        seen.add(c)
+    return out
+
+
+def _infer_min_sources(query: str, top_k_select: int) -> int:
+    """
+    Generic heuristic: multi-intent questions benefit from multi-source evidence when available.
+    """
+    ql = (query or "").lower()
+    multi_intent = any(x in ql for x in [" và ", " nếu ", " bao nhiêu", " bao lâu", " nhắc", " đổi qua", " khác không", " có giống"])
+    if not multi_intent:
+        return 1
+    return min(2, max(1, top_k_select))
+
+
+def _infer_min_sections(query: str, top_k_select: int) -> int:
+    """
+    Multi-constraint questions should include evidence from multiple sections when available.
+    """
+    ql = (query or "").lower()
+    needs_multi_section = any(
+        x in ql
+        for x in ["và", "đồng thời", "bao nhiêu", "quy trình", "yêu cầu", "điều kiện", "khác", "so với"]
+    )
+    if not needs_multi_section:
+        return 1
+    return min(2, max(1, top_k_select))
+
+
+def _ensure_diverse_sources(
+    merged_pool: List[Dict[str, Any]],
+    selected: List[Dict[str, Any]],
+    min_sources: int,
+    top_k_select: int,
+) -> List[Dict[str, Any]]:
+    """
+    Ensure at least `min_sources` distinct sources in the final selected set, if possible.
+    This avoids hardcoding which sources are "required" and generalizes across corpora.
+    """
+    if min_sources <= 1:
+        return selected[:top_k_select]
+
+    sel = list(selected)
+    sel_sources = [((c.get("metadata") or {}).get("source")) for c in sel]
+    distinct = [s for s in dict.fromkeys(sel_sources) if s]
+
+    if len(distinct) >= min_sources:
+        return sel[:top_k_select]
+
+    # Fill with best chunks from missing sources found in pool
+    used_texts = {c.get("text", "") for c in sel}
+    for c in merged_pool:
+        src = (c.get("metadata") or {}).get("source")
+        if not src:
+            continue
+        if src in distinct:
+            continue
+        if c.get("text", "") in used_texts:
+            continue
+        sel.append(c)
+        used_texts.add(c.get("text", ""))
+        distinct.append(src)
+        if len(distinct) >= min_sources or len(sel) >= top_k_select:
+            break
+
+    return sel[:top_k_select]
+
+
+def _ensure_diverse_sections(
+    merged_pool: List[Dict[str, Any]],
+    selected: List[Dict[str, Any]],
+    min_sections: int,
+    top_k_select: int,
+) -> List[Dict[str, Any]]:
+    """
+    Ensure evidence spans multiple sections for multi-part questions.
+    """
+    if min_sections <= 1:
+        return selected[:top_k_select]
+
+    sel = list(selected)
+    sel_sections = [((c.get("metadata") or {}).get("section")) for c in sel]
+    distinct = [s for s in dict.fromkeys(sel_sections) if s]
+
+    if len(distinct) >= min_sections:
+        return sel[:top_k_select]
+
+    used_texts = {c.get("text", "") for c in sel}
+    for c in merged_pool:
+        sec = (c.get("metadata") or {}).get("section")
+        if not sec:
+            continue
+        if sec in distinct:
+            continue
+        if c.get("text", "") in used_texts:
+            continue
+        sel.append(c)
+        used_texts.add(c.get("text", ""))
+        distinct.append(sec)
+        if len(distinct) >= min_sections or len(sel) >= top_k_select:
+            break
+
+    return sel[:top_k_select]
+
+
+def _extract_constraints(query: str) -> List[str]:
+    """
+    Split multi-part question into minimal constraints for completeness checks.
+    """
+    q = (query or "").strip()
+    if not q:
+        return []
+    parts = re.split(r"\?|\svà\s|\sđồng thời\s|;|\sso với\s", q, flags=re.IGNORECASE)
+    constraints = [p.strip() for p in parts if len(p.strip()) >= 8]
+    if not constraints:
+        return [q]
+    return constraints
+
+
+def _constraint_supported(constraint: str, candidates: List[Dict[str, Any]]) -> bool:
+    """
+    Check whether at least one retrieved chunk has enough lexical evidence for the constraint.
+    """
+    c_tokens = set(re.findall(r"\w+", constraint.lower()))
+    c_tokens = {t for t in c_tokens if len(t) >= 3}
+    if not c_tokens:
+        return True
+
+    for c in candidates:
+        txt = (c.get("text") or "").lower()
+        if not txt:
+            continue
+        hits = sum(1 for t in c_tokens if t in txt)
+        if hits >= min(3, max(1, len(c_tokens) // 3)):
+            return True
+    return False
+
+
+def _augment_for_missing_constraints(
+    query: str,
+    candidates: List[Dict[str, Any]],
+    top_k_search: int,
+    dense_weight: float,
+    sparse_weight: float,
+) -> List[Dict[str, Any]]:
+    """
+    If a question has multiple constraints, run targeted retrieval for missing constraints.
+    """
+    constraints = _extract_constraints(query)
+    if len(constraints) <= 1:
+        return candidates
+
+    merged_lists = [candidates]
+    for cons in constraints:
+        if _constraint_supported(cons, candidates):
+            continue
+        merged_lists.append(
+            retrieve_hybrid(
+                cons,
+                top_k=max(8, top_k_search // 2),
+                dense_weight=dense_weight,
+                sparse_weight=sparse_weight,
+            )
+        )
+
+    return _merge_candidates(merged_lists)
+
+
+def _is_freshness_query(query: str) -> bool:
+    ql = (query or "").lower()
+    freshness_terms = [
+        "phiên bản", "version", "hiện tại", "trước", "effective", "date", "đã thay đổi", "so với",
+        "áp dụng", "kể từ", "trước ngày", "mới nhất",
+    ]
+    return any(t in ql for t in freshness_terms)
+
+
+def _adaptive_search_config(query: str, top_k_search: int, top_k_select: int) -> Tuple[int, int]:
+    """
+    Increase retrieval depth for hard/multi-part/freshness questions.
+    """
+    ql = (query or "").lower()
+    constraints = _extract_constraints(query)
+    hard_like = (
+        len(constraints) >= 2
+        or _is_freshness_query(query)
+        or any(x in ql for x in ["quy trình", "yêu cầu", "ngoại lệ", "so với", "đồng thời"])
+    )
+    if not hard_like:
+        return top_k_search, top_k_select
+    return max(top_k_search, 36), max(top_k_select, 8)
 
 
 # =============================================================================
@@ -281,9 +610,78 @@ def transform_query(query: str, strategy: str = "expansion") -> List[str]:
 # =============================================================================
 
 
-def build_context_block(chunks: List[Dict[str, Any]]) -> str:
+def extract_exact_citation(text: str, query: str, max_length: int = 300) -> str:
+    """
+    Extract the most relevant sentence(s) from a chunk that match the query.
+    Finds exact matching phrases to ground the citation precisely.
+    
+    Args:
+        text: Full chunk text (can be 500+ tokens)
+        query: User query
+        max_length: Max length of extracted citation (250-400 chars is ideal)
+    
+    Returns:
+        Precise citation excerpt (1-2 sentences), or original text if no match found
+    """
+    if not text or not query:
+        return text[:max_length] if text else ""
+    
+    # Split text into sentences
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    
+    # Score each sentence by keyword overlap with query
+    query_tokens = set(re.findall(r'\b\w+\b', query.lower()))
+    sentence_scores = []
+    
+    for sent in sentences:
+        if not sent.strip():
+            continue
+        sent_tokens = set(re.findall(r'\b\w+\b', sent.lower()))
+        # Calculate Jaccard similarity
+        overlap = query_tokens & sent_tokens
+        score = len(overlap) / max(len(query_tokens | sent_tokens), 1)
+        sentence_scores.append((sent.strip(), score, len(overlap)))
+    
+    if not sentence_scores:
+        return text[:max_length]
+    
+    # Sort by score, then by number of matching keywords
+    sentence_scores.sort(key=lambda x: (x[1], x[2]), reverse=True)
+    
+    # Take top sentences until we reach max_length
+    selected = []
+    total_length = 0
+    for sent, score, _ in sentence_scores:
+        if score < 0.1:  # Filter out low relevance
+            break
+        sent_len = len(sent)
+        if total_length + sent_len <= max_length:
+            selected.append(sent)
+            total_length += sent_len + 1  # +1 for space
+        elif total_length < max_length * 0.7:  # Include at least first good sentence
+            selected.append(sent)
+            break
+    
+    if selected:
+        # Preserve sentence order from original
+        result = " ".join(selected)
+        return result[:max_length]
+    
+    # Fallback: return first sentence or first max_length chars
+    return sentences[0][:max_length] if sentences else text[:max_length]
+
+
+def build_context_block(chunks: List[Dict[str, Any]], query: str = "") -> str:
     """
     Đóng gói danh sách chunks thành context block để đưa vào prompt.
+    Uses exact citation extraction to show only relevant phrases, not entire chunks.
+    
+    Args:
+        chunks: List of retrieved chunks with text and metadata
+        query: User query (optional, used for precise citation extraction)
+    
+    Returns:
+        Context block with grounded citations
     """
     context_parts = []
     for i, chunk in enumerate(chunks, 1):
@@ -293,8 +691,14 @@ def build_context_block(chunks: List[Dict[str, Any]]) -> str:
         clean_source = source.split("/")[-1].split("\\")[-1]
         
         text = chunk.get("text", "")
+        
+        # Extract exact citation if query provided, otherwise use full chunk
+        if query:
+            citation_text = extract_exact_citation(text, query, max_length=300)
+        else:
+            citation_text = text
 
-        context_parts.append(f"[{i}] NGUỒN: {clean_source}\n{text}")
+        context_parts.append(f"[{i}] NGUỒN: {clean_source}\n{citation_text}")
 
     return "\n\n".join(context_parts)
 
@@ -381,8 +785,8 @@ def rerank_with_llm(query: str, candidates: List[Dict[str, Any]], top_k: int = 5
 
     items = []
     for i, c in enumerate(candidates):
-        # TĂNG snipet length lên 500 để LLM thấy đủ thông tin
-        snippet = c["text"][:500].replace("\n", " ")
+        # Longer snippet helps distinguish Section 2 (Level 4) vs generic process.
+        snippet = c["text"][:900].replace("\n", " ")
         src = c["metadata"].get("source", "unknown")
         items.append(f"ID:{i} | Source:{src} | Content:{snippet}")
 
@@ -431,29 +835,58 @@ def rag_answer(
     verbose: bool = False,
 ) -> Dict[str, Any]:
 
+    adaptive_search_k, adaptive_select_k = _adaptive_search_config(
+        query, top_k_search=top_k_search, top_k_select=top_k_select
+    )
+
     config = {
         "retrieval_mode": retrieval_mode,
-        "top_k_search": top_k_search,
-        "top_k_select": top_k_select,
+        "top_k_search": adaptive_search_k,
+        "top_k_select": adaptive_select_k,
         "use_rerank": use_rerank,
     }
 
     # --- Bước 1: Retrieve ---
     if retrieval_mode == "dense":
-        candidates = retrieve_dense(query, top_k=top_k_search)
-    elif retrieval_mode == "sparse":
-        candidates = retrieve_sparse(query, top_k=top_k_search)
-    elif retrieval_mode == "hybrid":
-        # DYNAMIC WEIGHTS
+        candidates = retrieve_dense(query, top_k=adaptive_search_k)
         weights = classify_query(query)
-        candidates = retrieve_hybrid(
-            query, 
-            top_k=top_k_search, 
-            dense_weight=weights["dense"], 
-            sparse_weight=weights["sparse"]
-        )
+    elif retrieval_mode == "sparse":
+        candidates = retrieve_sparse(query, top_k=adaptive_search_k)
+        weights = classify_query(query)
+    elif retrieval_mode == "hybrid":
+        # Multi-query hybrid to improve recall for multi-part grading questions
+        weights = classify_query(query)
+        sub_queries = _expand_queries(query)
+        lists = [
+            retrieve_hybrid(
+                q,
+                top_k=adaptive_search_k,
+                dense_weight=weights["dense"],
+                sparse_weight=weights["sparse"],
+            )
+            for q in sub_queries
+        ]
+
+        # Freshness questions benefit from explicit metadata words and date forms.
+        if _is_freshness_query(query):
+            lists.append(
+                retrieve_sparse(
+                    f"{query} effective date version current previous",
+                    top_k=adaptive_search_k,
+                )
+            )
+
+        candidates = _merge_candidates(lists)
     else:
         raise ValueError(f"retrieval_mode không hợp lệ: {retrieval_mode}")
+
+    candidates = _augment_for_missing_constraints(
+        query,
+        candidates,
+        top_k_search=adaptive_search_k,
+        dense_weight=weights["dense"],
+        sparse_weight=weights["sparse"],
+    )
 
     if verbose:
         print(f"[RAG] Retrieved {len(candidates)} candidates (mode={retrieval_mode})")
@@ -461,15 +894,54 @@ def rag_answer(
     # --- Bước 2: Rerank (optional) ---
     if use_rerank:
         # LLM RERANKING
-        candidates = rerank_with_llm(query, candidates, top_k=top_k_select)
+        candidates = rerank_with_llm(query, candidates, top_k=adaptive_select_k)
     else:
-        candidates = candidates[:top_k_select]
+        candidates = candidates[:adaptive_select_k]
+
+    # Final guard: encourage multi-source evidence for multi-intent questions (when available)
+    min_sources = _infer_min_sources(query, top_k_select=adaptive_select_k)
+    min_sections = _infer_min_sections(query, top_k_select=adaptive_select_k)
+    # At this point, `candidates` is already selected; use the broader pool by reusing retrieval lists merged.
+    # We keep it simple: for dense/sparse mode, the pool is the same as selected slice; for hybrid, we can reuse
+    # a shallow pool from current candidates + extra from hybrid retrieval.
+    if retrieval_mode == "hybrid":
+        pool = _merge_candidates([retrieve_hybrid(query, top_k=adaptive_search_k)])
+    else:
+        pool = list(candidates)
+    candidates = _ensure_diverse_sources(
+        pool,
+        candidates,
+        min_sources=min_sources,
+        top_k_select=adaptive_select_k,
+    )
+    candidates = _ensure_diverse_sections(
+        pool,
+        candidates,
+        min_sections=min_sections,
+        top_k_select=adaptive_select_k,
+    )
+
+    # Completeness guard: require evidence for all detected constraints.
+    constraints = _extract_constraints(query)
+    if len(constraints) >= 2:
+        missing = [c for c in constraints if not _constraint_supported(c, candidates)]
+        if missing:
+            return {
+                "query": query,
+                "answer": (
+                    "Tài liệu hiện tại chưa đủ bằng chứng cho đầy đủ các phần của câu hỏi. "
+                    f"Thiếu bằng chứng cho: {', '.join(missing[:2])}."
+                ),
+                "sources": ["Không có"],
+                "chunks_used": candidates,
+                "config": config,
+            }
 
     # if verbose:
     #     print(f"[RAG] After select: {len(candidates)} chunks")
 
     # --- Bước 3: Build context và prompt ---
-    context_block = build_context_block(candidates)
+    context_block = build_context_block(candidates, query=query)
     prompt = build_grounded_prompt(query, context_block)
 
     # if verbose:

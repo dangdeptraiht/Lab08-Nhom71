@@ -40,8 +40,8 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 DOCS_DIR = Path(__file__).parent / "data" / "docs"
 CHROMA_DB_DIR = Path(__file__).parent / "chroma_db"
 
-CHUNK_SIZE = 500  # tokens (uoc luong bang so ky tu / 4)
-CHUNK_OVERLAP = 50  # tokens overlap giua cac chunk
+CHUNK_SIZE = 320  # tokens (uoc luong bang so ky tu / 4)
+CHUNK_OVERLAP = 100  # tokens overlap giua cac chunk
 
 
 
@@ -250,7 +250,37 @@ def chunk_document(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
 
         return [s for s in sections if s["content"]]
 
-    separators = ["\n\n", "\n", ". ", " ", ""]
+    def split_list_aware(section_text: str) -> List[str]:
+        """
+        Split long policy sections by list-item boundaries first to keep rule chains intact.
+        """
+        lines = section_text.split("\n")
+        blocks: List[str] = []
+        current: List[str] = []
+        bullet_re = re.compile(r"^\s*(?:-|\*|\d+[\.)])\s+")
+
+        for line in lines:
+            if bullet_re.match(line) and current:
+                blocks.append("\n".join(current).strip())
+                current = [line]
+            else:
+                current.append(line)
+
+        if current:
+            blocks.append("\n".join(current).strip())
+
+        # Merge tiny blocks to avoid over-fragmentation.
+        merged: List[str] = []
+        for block in blocks:
+            if not block:
+                continue
+            if merged and len(merged[-1]) < 180:
+                merged[-1] = f"{merged[-1]}\n{block}".strip()
+            else:
+                merged.append(block)
+        return merged if merged else [section_text]
+
+    separators = ["\n\n", "\n- ", "\n* ", "\n", ". ", "; ", " ", ""]
     chunk_chars = CHUNK_SIZE * 4
     overlap_chars = CHUNK_OVERLAP * 4
 
@@ -260,12 +290,17 @@ def chunk_document(doc: Dict[str, Any]) -> List[Dict[str, Any]]:
         section_name = sec["section"]
         section_text = sec["content"]
 
-        if len(section_text) <= chunk_chars:
-            parts = [section_text]
-        else:
-            parts = recursive_split(
-                section_text, separators, chunk_chars, overlap_chars
-            )
+        section_blocks = split_list_aware(section_text)
+        parts: List[str] = []
+        for block in section_blocks:
+            if len(block) <= chunk_chars:
+                parts.append(block)
+            else:
+                parts.extend(
+                    recursive_split(
+                        block, separators, chunk_chars, overlap_chars
+                    )
+                )
 
         for content in parts:
             full_text = (
