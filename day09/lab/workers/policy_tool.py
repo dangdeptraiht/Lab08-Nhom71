@@ -20,6 +20,13 @@ import os
 import sys
 from typing import Optional
 
+# Load .env nếu có (cho standalone test)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 WORKER_NAME = "policy_tool_worker"
 
 
