@@ -155,9 +155,12 @@ def _estimate_confidence(chunks: list, answer: str, policy_result: dict) -> floa
     if "Không đủ thông tin" in answer or "không có trong tài liệu" in answer.lower():
         return 0.3  # Abstain → moderate-low
 
-    # Weighted average của chunk scores
+    # Dùng dense_score (cosine similarity) nếu có (hybrid_rrf lưu riêng),
+    # fallback về score (dùng cho dense-only retrieval).
     if chunks:
-        avg_score = sum(c.get("score", 0) for c in chunks) / len(chunks)
+        avg_score = sum(
+            c.get("dense_score", c.get("score", 0)) for c in chunks
+        ) / len(chunks)
     else:
         avg_score = 0
 

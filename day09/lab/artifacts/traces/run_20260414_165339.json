@@ -1,0 +1,108 @@
+{
+  "task": "Contractor cần Admin Access (Level 3) để khắc phục sự cố P1 đang active. Quy trình cấp quyền tạm thời như thế nào?",
+  "route_reason": "task contains P1, SLA, or escalation keywords | risk_high flagged",
+  "risk_high": true,
+  "needs_tool": true,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": "Tai lieu: QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)\nMuc: Section 2: Phân cấp quyền truy cập\n---\nLevel 1 — Read Only:\nÁp dụng cho: Tất cả nhân viên mới trong 30 ngày đầu.\nPhê duyệt: Line Manager.\nThời gian xử lý: 1 ngày làm việc.\n\nLevel 2 — Standard Access:\nÁp dụng cho: Nhân viên chính thức đã qua thử việc.\nPhê duyệt: Line Manager + IT Admin.\nThời gian xử lý: 2 ngày làm việc.\n\nLevel 3 — Elevated Access:\nÁp dụng cho: Team Lead, Senior Engineer, Manager.\nPhê duyệt: Line Manager + IT Admin + IT Security.\nThời gian xử lý: 3 ngày làm việc.\n\nLevel 4 — Admin Access:\nÁp dụng cho: DevOps, SRE, IT Admin.\nPhê duyệt: IT Manager + CISO.\nThời gian xử lý: 5 ngày làm việc.\nYêu cầu thêm: Training bắt buộc về security policy.",
+      "source": "access-control-sop.md",
+      "score": 0.599,
+      "metadata": {
+        "effective_date": "2026-01-01",
+        "index": 2,
+        "department": "IT Security",
+        "source": "access-control-sop.md",
+        "access": "internal",
+        "title": "QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)",
+        "section": "Section 2: Phân cấp quyền truy cập"
+      }
+    },
+    {
+      "text": "Tai lieu: QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)\nMuc: Section 4: Escalation khi cần thay đổi quyền hệ thống\n---\n1. On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời.\n2. Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.\n3. Mọi quyền tạm thời phải được ghi log vào hệ thống Security Audit.",
+      "source": "access-control-sop.md",
+      "score": 0.597,
+      "metadata": {
+        "section": "Section 4: Escalation khi cần thay đổi quyền hệ thống",
+        "index": 5,
+        "access": "internal",
+        "department": "IT Security",
+        "source": "access-control-sop.md",
+        "title": "QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)",
+        "effective_date": "2026-01-01"
+      }
+    },
+    {
+      "text": "Tai lieu: QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)\nMuc: Section 3: Quy trình yêu cầu cấp quyền\n---\nBước 1: Nhân viên tạo Access Request ticket trên Jira (project IT-ACCESS).\nBước 2: Line Manager phê duyệt yêu cầu trong 1 ngày làm việc.\nBước 3: IT Admin kiểm tra compliance và cấp quyền.\nBước 4: IT Security review với Level 3 và Level 4.\nBước 5: Nhân viên nhận thông báo qua email khi quyền được cấp.",
+      "source": "access-control-sop.md",
+      "score": 0.5885,
+      "metadata": {
+        "title": "QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)",
+        "effective_date": "2026-01-01",
+        "department": "IT Security",
+        "section": "Section 3: Quy trình yêu cầu cấp quyền",
+        "access": "internal",
+        "source": "access-control-sop.md",
+        "index": 3
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "access-control-sop.md"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Để cấp quyền Admin Access (Level 3) tạm thời cho Contractor nhằm khắc phục sự cố P1, quy trình như sau:\n\n1. **Phê duyệt**: On-call IT Admin cần được phê duyệt bằng lời từ Tech Lead.\n2. **Cấp quyền tạm thời**: IT Admin có thể cấp quyền tạm thời tối đa 24 giờ.\n3. **Ghi log**: Mọi quyền tạm thời phải được ghi log vào hệ thống Security Audit.\n4. **Ticket chính thức**: Sau 24 giờ, phải có ticket chính thức hoặc quyền sẽ bị thu hồi tự động.\n\nLưu ý: Quy trình này chỉ áp dụng cho quyền tạm thời và không thay thế quy trình cấp quyền chính thức [2][3].",
+  "sources": [
+    "access-control-sop.md"
+  ],
+  "confidence": 0.59,
+  "history": [
+    "[supervisor] received task: Contractor cần Admin Access (Level 3) để khắc phục sự cố P1 đang active. Quy trì",
+    "[supervisor] route=retrieval_worker reason=task contains P1, SLA, or escalation keywords | risk_high flagged",
+    "[retrieval_worker] retrieved 3 chunks from ['access-control-sop.md']",
+    "[synthesis_worker] answer generated, confidence=0.59, sources=['access-control-sop.md']",
+    "[graph] completed in 4727ms"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 4727,
+  "run_id": "run_20260414_165339",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "Contractor cần Admin Access (Level 3) để khắc phục sự cố P1 đang active. Quy trình cấp quyền tạm thời như thế nào?",
+        "top_k": 3
+      },
+      "output": {
+        "chunks_count": 3,
+        "sources": [
+          "access-control-sop.md"
+        ]
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "Contractor cần Admin Access (Level 3) để khắc phục sự cố P1 đang active. Quy trình cấp quyền tạm thời như thế nào?",
+        "chunks_count": 3,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 548,
+        "sources": [
+          "access-control-sop.md"
+        ],
+        "confidence": 0.59
+      },
+      "error": null
+    }
+  ],
+  "question_id": "q13"
+}

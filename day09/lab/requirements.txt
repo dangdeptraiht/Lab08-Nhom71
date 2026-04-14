@@ -27,6 +27,9 @@ openai>=1.12.0
 # ─── Data ───────────────────────────────
 pyyaml>=6.0.1
 
+# ─── Retrieval ──────────────────────────
+rank-bm25>=0.2.2
+
 # ─── MCP (Sprint 3 Advanced Mode) ──────
 fastapi>=0.110.0
 uvicorn>=0.27.0
