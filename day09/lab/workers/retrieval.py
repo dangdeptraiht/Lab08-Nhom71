@@ -16,7 +16,6 @@ Gọi độc lập để test:
 """
 
 import os
-import sys
 
 # ─────────────────────────────────────────────
 # Worker Contract (xem contracts/worker_contracts.yaml)
@@ -30,36 +29,41 @@ DEFAULT_TOP_K = 3
 
 def _get_embedding_fn():
     """
-    Trả về embedding function.
-    TODO Sprint 1: Implement dùng OpenAI hoặc Sentence Transformers.
+    Trả về embedding function phù hợp với ChromaDB đã index.
+    Ưu tiên OpenAI (text-embedding-3-small, 1536-dim) nếu có API key,
+    vì collection hiện tại được index bằng OpenAI embeddings.
+    Fallback sang Sentence Transformers nếu không có API key.
     """
-    # Option A: Sentence Transformers (offline, không cần API key)
+    # Option A: OpenAI (text-embedding-3-small, 1536-dim — khớp với collection đã index)
+    openai_key = os.getenv("OPENAI_API_KEY", "")
+    if openai_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            def embed_openai(text: str) -> list:
+                resp = client.embeddings.create(input=text, model="text-embedding-3-small")
+                return resp.data[0].embedding
+            return embed_openai
+        except ImportError:
+            pass
+
+    # Option B: Sentence Transformers (offline, 384-dim)
+    # Chú ý: nếu collection đã index bằng OpenAI, cần re-index trước khi dùng option này.
     try:
         from sentence_transformers import SentenceTransformer
         model = SentenceTransformer("all-MiniLM-L6-v2")
-        def embed(text: str) -> list:
+        def embed_st(text: str) -> list:
             return model.encode([text])[0].tolist()
-        return embed
+        return embed_st
     except ImportError:
         pass
 
-    # Option B: OpenAI (cần API key)
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        def embed(text: str) -> list:
-            resp = client.embeddings.create(input=text, model="text-embedding-3-small")
-            return resp.data[0].embedding
-        return embed
-    except ImportError:
-        pass
-
-    # Fallback: random embeddings cho test (KHÔNG dùng production)
+    # Fallback: random embeddings (KHÔNG dùng production)
     import random
-    def embed(text: str) -> list:
+    def embed_random(_text: str) -> list:
         return [random.random() for _ in range(384)]
-    print("⚠️  WARNING: Using random embeddings (test only). Install sentence-transformers.")
-    return embed
+    print("WARNING: Using random embeddings (test only). Install openai or sentence-transformers.")
+    return embed_random
 
 
 def _get_collection():

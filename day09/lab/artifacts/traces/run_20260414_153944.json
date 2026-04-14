@@ -1,0 +1,107 @@
+{
+  "task": "SLA xu ly ticket P1 la bao lau?",
+  "route_reason": "task contains P1, SLA, or escalation keywords | risk_high flagged",
+  "risk_high": true,
+  "needs_tool": false,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": "Tai lieu: SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ\nMuc: Phần 2: SLA theo mức độ ưu tiên\n---\n- Thông báo stakeholder: Ngay khi nhận ticket, update mỗi 30 phút cho đến khi resolve.\n\nTicket P2:\n- Phản hồi ban đầu: 2 giờ.\n- Xử lý và khắc phục: 1 ngày làm việc.\n- Escalation: Tự động escalate sau 90 phút không có phản hồi.\n\nTicket P3:",
+      "source": "sla-p1-2026.pdf",
+      "score": 0.6204,
+      "metadata": {
+        "section": "Phần 2: SLA theo mức độ ưu tiên",
+        "source": "sla-p1-2026.pdf",
+        "department": "IT",
+        "title": "SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ",
+        "effective_date": "2026-01-15",
+        "index": 2,
+        "access": "internal"
+      }
+    },
+    {
+      "text": "Tai lieu: SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ\nMuc: Phần 2: SLA theo mức độ ưu tiên\n---\nTicket P1:\n- Phản hồi ban đầu (first response): 15 phút kể từ khi ticket được tạo.\n- Xử lý và khắc phục (resolution): 4 giờ.\n- Escalation: Tự động escalate lên Senior Engineer nếu không có phản hồi trong 10 phút.",
+      "source": "sla-p1-2026.pdf",
+      "score": 0.6154,
+      "metadata": {
+        "index": 1,
+        "source": "sla-p1-2026.pdf",
+        "access": "internal",
+        "effective_date": "2026-01-15",
+        "title": "SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ",
+        "department": "IT",
+        "section": "Phần 2: SLA theo mức độ ưu tiên"
+      }
+    },
+    {
+      "text": "Tai lieu: SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ\nMuc: Phần 2: SLA theo mức độ ưu tiên\n---\n- Phản hồi ban đầu: 1 ngày làm việc.\n- Xử lý và khắc phục: 5 ngày làm việc.\n\nTicket P4:\n- Phản hồi ban đầu: 3 ngày làm việc.\n- Xử lý và khắc phục: Theo sprint cycle (thông thường 2-4 tuần).",
+      "source": "sla-p1-2026.pdf",
+      "score": 0.5855,
+      "metadata": {
+        "index": 3,
+        "department": "IT",
+        "section": "Phần 2: SLA theo mức độ ưu tiên",
+        "effective_date": "2026-01-15",
+        "title": "SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ",
+        "source": "sla-p1-2026.pdf",
+        "access": "internal"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "sla-p1-2026.pdf"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "SLA xử lý ticket P1 là như sau:\n\n- Phản hồi ban đầu: 15 phút kể từ khi ticket được tạo.\n- Xử lý và khắc phục: 4 giờ.\n\nNếu không có phản hồi trong 10 phút, ticket sẽ tự động escalate lên Senior Engineer [2].",
+  "sources": [
+    "sla-p1-2026.pdf"
+  ],
+  "confidence": 0.61,
+  "history": [
+    "[supervisor] received task: SLA xu ly ticket P1 la bao lau?",
+    "[supervisor] route=retrieval_worker reason=task contains P1, SLA, or escalation keywords | risk_high flagged",
+    "[retrieval_worker] retrieved 3 chunks from ['sla-p1-2026.pdf']",
+    "[synthesis_worker] answer generated, confidence=0.61, sources=['sla-p1-2026.pdf']",
+    "[graph] completed in 6728ms"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 6728,
+  "run_id": "run_20260414_153944",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "SLA xu ly ticket P1 la bao lau?",
+        "top_k": 3
+      },
+      "output": {
+        "chunks_count": 3,
+        "sources": [
+          "sla-p1-2026.pdf"
+        ]
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "SLA xu ly ticket P1 la bao lau?",
+        "chunks_count": 3,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 206,
+        "sources": [
+          "sla-p1-2026.pdf"
+        ],
+        "confidence": 0.61
+      },
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "task": "ERR-999: Loi khong xac dinh luc 2am.",
+  "route_reason": "unknown error or high-risk scenario requires human review | human approved -> proceeding to retrieval",
+  "risk_high": true,
+  "needs_tool": false,
+  "hitl_triggered": true,
+  "retrieved_chunks": [
+    {
+      "text": "Tai lieu: SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ\nMuc: Phần 2: SLA theo mức độ ưu tiên\n---\n- Thông báo stakeholder: Ngay khi nhận ticket, update mỗi 30 phút cho đến khi resolve.\n\nTicket P2:\n- Phản hồi ban đầu: 2 giờ.\n- Xử lý và khắc phục: 1 ngày làm việc.\n- Escalation: Tự động escalate sau 90 phút không có phản hồi.\n\nTicket P3:",
+      "source": "sla-p1-2026.pdf",
+      "score": 0.3915,
+      "metadata": {
+        "section": "Phần 2: SLA theo mức độ ưu tiên",
+        "department": "IT",
+        "access": "internal",
+        "title": "SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ",
+        "index": 2,
+        "effective_date": "2026-01-15",
+        "source": "sla-p1-2026.pdf"
+      }
+    },
+    {
+      "text": "Tai lieu: SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ\nMuc: Phần 2: SLA theo mức độ ưu tiên\n---\nTicket P1:\n- Phản hồi ban đầu (first response): 15 phút kể từ khi ticket được tạo.\n- Xử lý và khắc phục (resolution): 4 giờ.\n- Escalation: Tự động escalate lên Senior Engineer nếu không có phản hồi trong 10 phút.",
+      "source": "sla-p1-2026.pdf",
+      "score": 0.3907,
+      "metadata": {
+        "index": 1,
+        "title": "SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ",
+        "effective_date": "2026-01-15",
+        "source": "sla-p1-2026.pdf",
+        "access": "internal",
+        "section": "Phần 2: SLA theo mức độ ưu tiên",
+        "department": "IT"
+      }
+    },
+    {
+      "text": "Tai lieu: QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)\nMuc: Section 4: Escalation khi cần thay đổi quyền hệ thống\n---\n1. On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời.\n2. Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.\n3. Mọi quyền tạm thời phải được ghi log vào hệ thống Security Audit.",
+      "source": "access-control-sop.md",
+      "score": 0.3872,
+      "metadata": {
+        "source": "access-control-sop.md",
+        "title": "QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)",
+        "section": "Section 4: Escalation khi cần thay đổi quyền hệ thống",
+        "access": "internal",
+        "department": "IT Security",
+        "effective_date": "2026-01-01",
+        "index": 5
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "sla-p1-2026.pdf",
+    "access-control-sop.md"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Không đủ thông tin trong tài liệu nội bộ để giải quyết lỗi ERR-999: Loi khong xac dinh luc 2am.",
+  "sources": [
+    "sla-p1-2026.pdf",
+    "access-control-sop.md"
+  ],
+  "confidence": 0.3,
+  "history": [
+    "[supervisor] received task: ERR-999: Loi khong xac dinh luc 2am.",
+    "[supervisor] route=human_review reason=unknown error or high-risk scenario requires human review",
+    "[human_review] HITL triggered — awaiting human input",
+    "[retrieval_worker] retrieved 3 chunks from ['sla-p1-2026.pdf', 'access-control-sop.md']",
+    "[synthesis_worker] answer generated, confidence=0.3, sources=['sla-p1-2026.pdf', 'access-control-sop.md']",
+    "[graph] completed in 2578ms"
+  ],
+  "workers_called": [
+    "human_review",
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 2578,
+  "run_id": "run_20260414_153957",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "ERR-999: Loi khong xac dinh luc 2am.",
+        "top_k": 3
+      },
+      "output": {
+        "chunks_count": 3,
+        "sources": [
+          "sla-p1-2026.pdf",
+          "access-control-sop.md"
+        ]
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "ERR-999: Loi khong xac dinh luc 2am.",
+        "chunks_count": 3,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 95,
+        "sources": [
+          "sla-p1-2026.pdf",
+          "access-control-sop.md"
+        ],
+        "confidence": 0.3
+      },
+      "error": null
+    }
+  ]
+}

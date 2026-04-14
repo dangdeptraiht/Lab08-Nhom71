@@ -11,8 +11,21 @@ Chạy thử:
 
 import json
 import os
+import sys
 from datetime import datetime
 from typing import TypedDict, Literal, Optional
+
+# Load .env nếu có
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# Đảm bảo lab/ nằm trong sys.path để import workers và mcp_server
+_LAB_DIR = os.path.dirname(os.path.abspath(__file__))
+if _LAB_DIR not in sys.path:
+    sys.path.insert(0, _LAB_DIR)
 
 # Uncomment nếu dùng LangGraph:
 # from langgraph.graph import StateGraph, END
@@ -182,71 +195,30 @@ def human_review_node(state: AgentState) -> AgentState:
 # 5. Import Workers
 # ─────────────────────────────────────────────
 
-# TODO Sprint 2: Uncomment sau khi implement workers
-# from workers.retrieval import run as retrieval_run
-# from workers.policy_tool import run as policy_tool_run
-# from workers.synthesis import run as synthesis_run
+# Sprint 2: Import real workers
+from workers.retrieval import run as retrieval_run
+from workers.policy_tool import run as policy_tool_run
+from workers.synthesis import run as synthesis_run
 
 
 def retrieval_worker_node(state: AgentState) -> AgentState:
-    """Wrapper gọi retrieval worker."""
-    # TODO Sprint 2: Thay bằng retrieval_run(state)
-    state["workers_called"].append("retrieval_worker")
-    state["history"].append("[retrieval_worker] called")
-
-    # Placeholder output để test graph chạy được
-    state["retrieved_chunks"] = [
-        {"text": "SLA P1: phản hồi 15 phút, xử lý 4 giờ.", "source": "sla_p1_2026.txt", "score": 0.92}
-    ]
-    state["retrieved_sources"] = ["sla_p1_2026.txt"]
-    state["history"].append(f"[retrieval_worker] retrieved {len(state['retrieved_chunks'])} chunks")
-    return state
+    """Wrapper gọi retrieval worker thực."""
+    return retrieval_run(state)
 
 
 def policy_tool_worker_node(state: AgentState) -> AgentState:
-    """Wrapper gọi policy/tool worker."""
-    # TODO Sprint 2: Thay bằng policy_tool_run(state)
-    state["workers_called"].append("policy_tool_worker")
-    state["history"].append("[policy_tool_worker] called")
-
-    # Placeholder output
-    state["policy_result"] = {
-        "policy_applies": True,
-        "policy_name": "refund_policy_v4",
-        "exceptions_found": [],
-        "source": "policy_refund_v4.txt",
-    }
-    state["history"].append("[policy_tool_worker] policy check complete")
-    
-    # In practice, policy tool might need chunks first. 
-    # If not present, we can call retrieval here or ensure graph flow handles it.
+    """
+    Wrapper gọi policy/tool worker thực.
+    Nếu chưa có retrieved_chunks, gọi retrieval trước để có context.
+    """
     if not state.get("retrieved_chunks"):
-        state = retrieval_worker_node(state)
-        
-    return state
+        state = retrieval_run(state)
+    return policy_tool_run(state)
 
 
 def synthesis_worker_node(state: AgentState) -> AgentState:
-    """Wrapper gọi synthesis worker."""
-    # TODO Sprint 2: Thay bằng synthesis_run(state)
-    state["workers_called"].append("synthesis_worker")
-    state["history"].append("[synthesis_worker] called")
-
-    # Placeholder output
-    chunks = state.get("retrieved_chunks", [])
-    sources = state.get("retrieved_sources", [])
-    policy_res = state.get("policy_result", {})
-    
-    ans = f"[PLACEHOLDER] Câu trả lời đã được tổng hợp. "
-    if policy_res:
-        ans += f"Policy áp dụng: {policy_res.get('policy_name')}. "
-    ans += f"Evidence từ {len(chunks)} tài liệu."
-    
-    state["final_answer"] = ans
-    state["sources"] = sources
-    state["confidence"] = 0.85
-    state["history"].append(f"[synthesis_worker] answer generated, confidence={state['confidence']}")
-    return state
+    """Wrapper gọi synthesis worker thực."""
+    return synthesis_run(state)
 
 
 # ─────────────────────────────────────────────
@@ -343,4 +315,4 @@ if __name__ == "__main__":
         trace_file = save_trace(result)
         print(f"  Trace saved → {trace_file}")
 
-    print("\n✅ Sprint 1 complete: Supervisor node and graph structure functional.")
+    print("\n✅ Sprint 2 complete: Real workers integrated — retrieval, policy_tool, synthesis.")
