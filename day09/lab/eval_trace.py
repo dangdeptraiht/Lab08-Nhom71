@@ -21,6 +21,8 @@ import argparse
 from datetime import datetime
 from typing import Optional
 
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+
 # Import graph
 sys.path.insert(0, os.path.dirname(__file__))
 from graph import run_graph, save_trace

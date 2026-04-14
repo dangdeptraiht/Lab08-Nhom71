@@ -148,6 +148,7 @@ def analyze_policy(task: str, chunks: list, mcp_enrichment: dict = None) -> dict
             "source": "policy_refund_v4.txt",
         })
 
+<<<<<<< HEAD
     # "ky thuat so" / "kỹ thuật số" — phải kiểm tra negation trước
     negated_digital_rb = any(neg in task_lower for neg in [
         "khong phai ky thuat so", "không phải kỹ thuật số",
@@ -157,6 +158,17 @@ def analyze_policy(task: str, chunks: list, mcp_enrichment: dict = None) -> dict
         kw in task_lower
         for kw in ["license key", "license", "subscription", "ky thuat so", "kỹ thuật số"]
     ):
+=======
+    # "ky thuat so" giữ để match text không dấu; "kỹ thuật số" match text có dấu
+    # Kiểm tra negation trước để tránh false positive khi task nói "không phải kỹ thuật số"
+    negated_digital = any(neg in task_lower for neg in [
+        "khong phai ky thuat so", "không phải kỹ thuật số",
+        "not digital", "not license",
+    ])
+    if not negated_digital and any(kw in task_lower for kw in [
+        "license key", "license", "subscription", "ky thuat so", "kỹ thuật số"
+    ]):
+>>>>>>> 49d586e13faf921ef47cbc652301b5d424253925
         exceptions_found.append({
             "type": "digital_product_exception",
             "rule": "Sản phẩm kỹ thuật số (license key, subscription) không được hoàn tiền (Điều 3).",
@@ -273,6 +285,7 @@ def run(state: dict) -> dict:
             order_date = dates[0]
             request_date = dates[1]
 
+<<<<<<< HEAD
             # Detect product type from task — check negation first to avoid false match
             # (e.g. "không phải kỹ thuật số" must NOT set product_type to license_key)
             negated_digital = any(neg in task_lower for neg in [
@@ -280,6 +293,14 @@ def run(state: dict) -> dict:
                 "not digital", "not a digital product",
             ])
             product_type = "physical"
+=======
+            # Detect product type from task — check negation first (same pattern as Flash Sale)
+            product_type = "physical"
+            negated_digital = any(neg in task_lower for neg in [
+                "khong phai ky thuat so", "không phải kỹ thuật số",
+                "not digital", "not license",
+            ])
+>>>>>>> 49d586e13faf921ef47cbc652301b5d424253925
             if not negated_digital and any(
                 kw in task_lower for kw in ["license", "subscription", "ky thuat so", "kỹ thuật số"]
             ):
