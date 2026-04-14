@@ -18,7 +18,6 @@ Gọi độc lập để test:
 
 import os
 import re
-from typing import Optional
 
 # Load .env nếu có (cho standalone test)
 try:
@@ -149,9 +148,15 @@ def analyze_policy(task: str, chunks: list, mcp_enrichment: dict = None) -> dict
             "source": "policy_refund_v4.txt",
         })
 
-    # "ky thuat so" giữ để match text không dấu; "kỹ thuật số" match text có dấu
-    if any(kw in task_lower for kw in ["license key", "license", "subscription",
-                                        "ky thuat so", "kỹ thuật số"]):
+    # "ky thuat so" / "kỹ thuật số" — phải kiểm tra negation trước
+    negated_digital_rb = any(neg in task_lower for neg in [
+        "khong phai ky thuat so", "không phải kỹ thuật số",
+        "not digital", "not a digital product",
+    ])
+    if not negated_digital_rb and any(
+        kw in task_lower
+        for kw in ["license key", "license", "subscription", "ky thuat so", "kỹ thuật số"]
+    ):
         exceptions_found.append({
             "type": "digital_product_exception",
             "rule": "Sản phẩm kỹ thuật số (license key, subscription) không được hoàn tiền (Điều 3).",
@@ -167,16 +172,46 @@ def analyze_policy(task: str, chunks: list, mcp_enrichment: dict = None) -> dict
             "source": "policy_refund_v4.txt",
         })
 
-    policy_applies = len(exceptions_found) == 0
-    # TODO: Check nếu đơn hàng trước 01/02/2026 → v3 applies (không có docs, nên flag cho synthesis)
+    # Temporal scoping: Detect order date before 01/02/2026 → policy v3 applies
+    # Check both text patterns AND parsed date values from task
+    order_before_v4 = (
+        "31/01" in task_lower
+        or "30/01" in task_lower
+        or "trước 01/02" in task_lower
+        or "trước 2026-02-01" in task_lower
+    )
+    if not order_before_v4:
+        # Parse any DD/MM/YYYY dates in the task
+        from datetime import datetime as _dt
+        for d in _extract_dates(task):
+            try:
+                parts = d.split("/")
+                day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+                if _dt(year, month, day) < _dt(2026, 2, 1):
+                    order_before_v4 = True
+                    break
+            except Exception:
+                pass
+
     policy_name = "refund_policy_v4"
     policy_version_note = ""
 
-    if "31/01" in task_lower or "30/01" in task_lower or "trước 01/02" in task_lower:
+    if order_before_v4:
         policy_version_note = (
-            "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3 (không có trong tài liệu hiện tại)."
+            "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3 (không có trong tài liệu nội bộ)."
         )
+        exceptions_found.append({
+            "type": "policy_version_mismatch",
+            "rule": (
+                "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách hoàn tiền v3. "
+                "Tài liệu nội bộ chỉ có chính sách v4 (hiệu lực từ 01/02/2026). "
+                "Không thể xác nhận kết quả theo v3 — cần escalate lên CS team xử lý thủ công."
+            ),
+            "source": "policy_refund_v4.txt",
+            "mcp_verified": False,
+        })
 
+    policy_applies = len(exceptions_found) == 0
     sources = list({c.get("source", "unknown") for c in chunks if c})
 
     return {
@@ -238,9 +273,16 @@ def run(state: dict) -> dict:
             order_date = dates[0]
             request_date = dates[1]
 
-            # Detect product type from task
+            # Detect product type from task — check negation first to avoid false match
+            # (e.g. "không phải kỹ thuật số" must NOT set product_type to license_key)
+            negated_digital = any(neg in task_lower for neg in [
+                "khong phai ky thuat so", "không phải kỹ thuật số",
+                "not digital", "not a digital product",
+            ])
             product_type = "physical"
-            if any(kw in task_lower for kw in ["license", "subscription", "ky thuat so", "kỹ thuật số"]):
+            if not negated_digital and any(
+                kw in task_lower for kw in ["license", "subscription", "ky thuat so", "kỹ thuật số"]
+            ):
                 product_type = "license_key"
 
             is_flash_sale = "flash sale" in task_lower and not any(

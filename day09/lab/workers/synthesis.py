@@ -35,6 +35,20 @@ Quy tắc nghiêm ngặt:
 3. Trích dẫn nguồn cuối mỗi câu quan trọng: [tên_file].
 4. Trả lời súc tích, có cấu trúc. Không dài dòng.
 5. Nếu có exceptions/ngoại lệ → nêu rõ ràng trước khi kết luận.
+6. Phép tính thời gian đơn giản từ dữ liệu trong tài liệu được phép (VD: 22:47 + 10 phút = 22:57).
+7. Khi liệt kê kênh thông báo hoặc công cụ, phải liệt kê ĐẦY ĐỦ tất cả kênh được đề cập trong context, không bỏ sót.
+"""
+
+# Instruction đặc biệt cho trường hợp policy v3 (đơn hàng trước 01/02/2026)
+_V3_ABSTAIN_INSTRUCTION = """
+=== CẢNH BÁO QUAN TRỌNG: POLICY VERSION MISMATCH ===
+Đơn hàng được đặt TRƯỚC ngày 01/02/2026, do đó chính sách phiên bản 3 (v3) áp dụng — KHÔNG PHẢI v4.
+Tài liệu nội bộ hiện tại CHỈ có chính sách v4 (có hiệu lực từ 01/02/2026).
+BẮT BUỘC: Bạn PHẢI abstain và nêu rõ:
+  - Chính sách nào áp dụng (v3) và tại sao (ngày đặt hàng trước 01/02/2026)
+  - Tài liệu hiện tại không có chính sách v3 → không thể xác nhận kết quả
+  - Đề nghị liên hệ CS team để xử lý thủ công
+TUYỆT ĐỐI KHÔNG được trả lời dựa trên nội dung chính sách v4 cho đơn hàng này.
 """
 
 
@@ -72,9 +86,21 @@ def _call_llm(messages: list) -> str:
     return "[SYNTHESIS ERROR] Không thể gọi LLM. Kiểm tra API key trong .env."
 
 
+def _has_v3_mismatch(policy_result: dict) -> bool:
+    """Kiểm tra xem có policy version mismatch (đơn hàng trước 01/02/2026) không."""
+    for ex in policy_result.get("exceptions_found", []):
+        if ex.get("type") == "policy_version_mismatch":
+            return True
+    return False
+
+
 def _build_context(chunks: list, policy_result: dict) -> str:
     """Xây dựng context string từ chunks và policy result."""
     parts = []
+
+    # Trường hợp đặc biệt: policy version mismatch → thêm cảnh báo bắt buộc abstain
+    if _has_v3_mismatch(policy_result):
+        parts.append(_V3_ABSTAIN_INSTRUCTION)
 
     if chunks:
         parts.append("=== TÀI LIỆU THAM KHẢO ===")
@@ -87,7 +113,10 @@ def _build_context(chunks: list, policy_result: dict) -> str:
     if policy_result and policy_result.get("exceptions_found"):
         parts.append("\n=== POLICY EXCEPTIONS ===")
         for ex in policy_result["exceptions_found"]:
-            parts.append(f"- {ex.get('rule', '')}")
+            ex_type = ex.get("type", "")
+            rule = ex.get("rule", "")
+            mcp = " [MCP verified]" if ex.get("mcp_verified") else ""
+            parts.append(f"- [{ex_type}]{mcp} {rule}")
 
     if not parts:
         return "(Không có context)"
@@ -123,37 +152,65 @@ def _estimate_confidence(chunks: list, answer: str, policy_result: dict) -> floa
     return round(max(0.1, confidence), 2)
 
 
+def _get_exceptions_by_type(policy_result: dict) -> dict:
+    """Trả về dict mapping exception type → exception object."""
+    return {
+        ex.get("type"): ex
+        for ex in policy_result.get("exceptions_found", [])
+        if ex.get("type")
+    }
+
+
 def synthesize(task: str, chunks: list, policy_result: dict) -> dict:
     """
     Tổng hợp câu trả lời từ chunks và policy context.
 
+    Với các exception rõ ràng (v3 mismatch, Flash Sale), trả về câu trả lời
+    deterministic để tránh LLM bỏ qua instruction.
+
     Returns:
         {"answer": str, "sources": list, "confidence": float}
     """
-    context = _build_context(chunks, policy_result)
+    sources = list({c.get("source", "unknown") for c in chunks})
+    exceptions = _get_exceptions_by_type(policy_result)
 
-    # Build messages
+    # ── Fast path 1: Policy v3 mismatch → Deterministic abstain ──────────
+    if "policy_version_mismatch" in exceptions:
+        answer = (
+            "Không thể xác nhận kết quả hoàn tiền cho đơn hàng này.\n\n"
+            "Đơn hàng được đặt trước ngày 01/02/2026, do đó chính sách hoàn tiền "
+            "**phiên bản 3 (v3)** áp dụng — không phải v4.\n"
+            "Tài liệu nội bộ hiện tại chỉ có chính sách v4 (hiệu lực từ 01/02/2026). "
+            "Không đủ thông tin để xác nhận kết quả theo v3. "
+            "[policy_refund_v4.txt]\n\n"
+            "Khuyến nghị: Escalate lên CS team để xử lý thủ công theo chính sách v3."
+        )
+        return {"answer": answer, "sources": sources, "confidence": 0.9}
+
+    # ── Fast path 2: Flash Sale exception → Deterministic no-refund ───────
+    if "flash_sale_exception" in exceptions:
+        answer = (
+            "Khách hàng **không được hoàn tiền**.\n\n"
+            "Dù sản phẩm bị lỗi từ nhà sản xuất và yêu cầu được gửi trong thời hạn, "
+            "đơn hàng thuộc chương trình Flash Sale là **ngoại lệ không được hoàn tiền** "
+            "theo Điều 3, chính sách v4. Ngoại lệ Flash Sale override tất cả điều kiện "
+            "thông thường. [policy_refund_v4.txt]"
+        )
+        return {"answer": answer, "sources": sources, "confidence": 0.92}
+
+    # ── General path: dùng LLM cho các câu hỏi cần reasoning phức tạp ────
+    context = _build_context(chunks, policy_result)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {
             "role": "user",
-            "content": f"""Câu hỏi: {task}
-
-{context}
-
-Hãy trả lời câu hỏi dựa vào tài liệu trên."""
-        }
+            "content": f"Câu hỏi: {task}\n\n{context}\n\nHãy trả lời câu hỏi dựa vào tài liệu trên.",
+        },
     ]
 
     answer = _call_llm(messages)
-    sources = list({c.get("source", "unknown") for c in chunks})
     confidence = _estimate_confidence(chunks, answer, policy_result)
-
-    return {
-        "answer": answer,
-        "sources": sources,
-        "confidence": confidence,
-    }
+    return {"answer": answer, "sources": sources, "confidence": confidence}
 
 
 def run(state: dict) -> dict:

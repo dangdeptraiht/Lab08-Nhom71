@@ -1,0 +1,115 @@
+{
+  "task": "Mức phạt tài chính cụ thể khi đội IT vi phạm SLA P1 resolution time (không resolve trong 4 giờ) là bao nhiêu?",
+  "route_reason": "task contains P1, SLA, or escalation keywords | risk_high flagged",
+  "risk_high": true,
+  "needs_tool": false,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: Phần 2: SLA theo mức độ ưu tiên\n---\nTicket P1:\n- Phản hồi ban đầu (first response): 15 phút kể từ khi ticket được tạo.\n- Xử lý và khắc phục (resolution): 4 giờ.\n- Escalation: Tự động escalate lên Senior Engineer nếu không có phản hồi trong 10 phút.\n- Thông báo stakeholder: Ngay khi nhận ticket, update mỗi 30 phút cho đến khi resolve.\n\nTicket P2:\n- Phản hồi ban đầu: 2 giờ.\n- Xử lý và khắc phục: 1 ngày làm việc.\n- Escalation: Tự động escalate sau 90 phút không có phản hồi.\n\nTicket P3:\n- Phản hồi ban đầu: 1 ngày làm việc.\n- Xử lý và khắc phục: 5 ngày làm việc.\n\nTicket P4:\n- Phản hồi ban đầu: 3 ngày làm việc.\n- Xử lý và khắc phục: Theo sprint cycle (thông thường 2-4 tuần).",
+      "source": "sla_p1_2026.txt",
+      "score": 0.5725,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "section": "Phần 2: SLA theo mức độ ưu tiên",
+        "doc": "sla_p1_2026"
+      }
+    },
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: Phần 3: Quy trình xử lý sự cố P1\n---\nBước 1: Tiếp nhận\nOn-call engineer nhận alert hoặc ticket, xác nhận severity trong 5 phút.\n\nBước 2: Thông báo\nGửi thông báo ngay lập tức qua đầy đủ 3 kênh sau:\n- Slack #incident-p1\n- Email: incident@company.internal\n- PagerDuty: tự động nhắn on-call engineer khi P1 ticket mới\n\nBước 3: Triage và phân công\nLead Engineer phân công engineer xử lý trong 10 phút.\n\nBước 4: Xử lý\nEngineer cập nhật tiến độ lên ticket mỗi 30 phút. Nếu cần hỗ trợ thêm, escalate ngay.\n\nBước 5: Resolution\nSau khi khắc phục, viết incident report trong vòng 24 giờ.",
+      "source": "sla_p1_2026.txt",
+      "score": 0.5161,
+      "metadata": {
+        "section": "Phần 3: Quy trình xử lý sự cố P1",
+        "doc": "sla_p1_2026",
+        "source": "sla_p1_2026.txt"
+      }
+    },
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: general\n---\nSLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ\nSource: support/sla-p1-2026.pdf\nDepartment: IT\nEffective Date: 2026-01-15\nAccess: internal",
+      "source": "sla_p1_2026.txt",
+      "score": 0.4822,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "doc": "sla_p1_2026",
+        "section": "general"
+      }
+    },
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: Phần 5: Lịch sử phiên bản\n---\nv2026.1 (2026-01-15): Cập nhật SLA P1 resolution từ 6 giờ xuống 4 giờ.\nv2025.3 (2025-09-01): Thêm quy trình escalation tự động.\nv2025.1 (2025-03-01): Phiên bản đầu tiên.",
+      "source": "sla_p1_2026.txt",
+      "score": 0.4804,
+      "metadata": {
+        "doc": "sla_p1_2026",
+        "section": "Phần 5: Lịch sử phiên bản",
+        "source": "sla_p1_2026.txt"
+      }
+    },
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: Phần 1: Định nghĩa mức độ ưu tiên\n---\nP1 — CRITICAL (Khẩn cấp):\nĐịnh nghĩa: Sự cố ảnh hưởng toàn bộ hệ thống production, không có workaround.\nVí dụ: Database sập, API gateway down, toàn bộ người dùng không thể đăng nhập.\n\nP2 — HIGH (Nghiêm trọng):\nĐịnh nghĩa: Sự cố ảnh hưởng một phần hệ thống, có workaround tạm thời.\nVí dụ: Một số tính năng không hoạt động, ảnh hưởng một nhóm người dùng.\n\nP3 — MEDIUM (Trung bình):\nĐịnh nghĩa: Lỗi ảnh hưởng không đáng kể, người dùng vẫn làm việc được.\n\nP4 — LOW (Thấp):\nĐịnh nghĩa: Yêu cầu cải tiến, gợi ý, hoặc lỗi giao diện nhỏ.",
+      "source": "sla_p1_2026.txt",
+      "score": 0.4788,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "section": "Phần 1: Định nghĩa mức độ ưu tiên",
+        "doc": "sla_p1_2026"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "sla_p1_2026.txt"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Không đủ thông tin trong tài liệu nội bộ về mức phạt tài chính cụ thể khi đội IT vi phạm SLA P1 resolution time. [sla_p1_2026.txt]",
+  "sources": [
+    "sla_p1_2026.txt"
+  ],
+  "confidence": 0.3,
+  "history": [
+    "[supervisor] received task: Mức phạt tài chính cụ thể khi đội IT vi phạm SLA P1 resolution time (không resol",
+    "[supervisor] route=retrieval_worker reason=task contains P1, SLA, or escalation keywords | risk_high flagged",
+    "[retrieval_worker] retrieved 5 chunks from ['sla_p1_2026.txt']",
+    "[synthesis_worker] answer generated, confidence=0.3, sources=['sla_p1_2026.txt']",
+    "[graph] completed in 2415ms"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 2415,
+  "run_id": "run_20260414_180254",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "Mức phạt tài chính cụ thể khi đội IT vi phạm SLA P1 resolution time (không resolve trong 4 giờ) là bao nhiêu?",
+        "top_k": 5
+      },
+      "output": {
+        "chunks_count": 5,
+        "sources": [
+          "sla_p1_2026.txt"
+        ]
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "Mức phạt tài chính cụ thể khi đội IT vi phạm SLA P1 resolution time (không resolve trong 4 giờ) là bao nhiêu?",
+        "chunks_count": 5,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 130,
+        "sources": [
+          "sla_p1_2026.txt"
+        ],
+        "confidence": 0.3
+      },
+      "error": null
+    }
+  ]
+}
