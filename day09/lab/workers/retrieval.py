@@ -17,6 +17,13 @@ Gọi độc lập để test:
 
 import os
 
+# Load .env nếu có (cho standalone test)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # ─────────────────────────────────────────────
 # Worker Contract (xem contracts/worker_contracts.yaml)
 # Input:  {"task": str, "top_k": int = 3}
