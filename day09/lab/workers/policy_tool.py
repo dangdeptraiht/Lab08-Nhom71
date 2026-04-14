@@ -150,8 +150,14 @@ def analyze_policy(task: str, chunks: list, mcp_enrichment: dict = None) -> dict
         })
 
     # "ky thuat so" giữ để match text không dấu; "kỹ thuật số" match text có dấu
-    if any(kw in task_lower for kw in ["license key", "license", "subscription",
-                                        "ky thuat so", "kỹ thuật số"]):
+    # Kiểm tra negation trước để tránh false positive khi task nói "không phải kỹ thuật số"
+    negated_digital = any(neg in task_lower for neg in [
+        "khong phai ky thuat so", "không phải kỹ thuật số",
+        "not digital", "not license",
+    ])
+    if not negated_digital and any(kw in task_lower for kw in [
+        "license key", "license", "subscription", "ky thuat so", "kỹ thuật số"
+    ]):
         exceptions_found.append({
             "type": "digital_product_exception",
             "rule": "Sản phẩm kỹ thuật số (license key, subscription) không được hoàn tiền (Điều 3).",
@@ -238,9 +244,15 @@ def run(state: dict) -> dict:
             order_date = dates[0]
             request_date = dates[1]
 
-            # Detect product type from task
+            # Detect product type from task — check negation first (same pattern as Flash Sale)
             product_type = "physical"
-            if any(kw in task_lower for kw in ["license", "subscription", "ky thuat so", "kỹ thuật số"]):
+            negated_digital = any(neg in task_lower for neg in [
+                "khong phai ky thuat so", "không phải kỹ thuật số",
+                "not digital", "not license",
+            ])
+            if not negated_digital and any(
+                kw in task_lower for kw in ["license", "subscription", "ky thuat so", "kỹ thuật số"]
+            ):
                 product_type = "license_key"
 
             is_flash_sale = "flash sale" in task_lower and not any(

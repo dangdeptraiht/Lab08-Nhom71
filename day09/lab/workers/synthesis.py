@@ -35,6 +35,12 @@ Quy tắc nghiêm ngặt:
 3. Trích dẫn nguồn cuối mỗi câu quan trọng: [tên_file].
 4. Trả lời súc tích, có cấu trúc. Không dài dòng.
 5. Nếu có exceptions/ngoại lệ → nêu rõ ràng trước khi kết luận.
+6. Nếu context có cảnh báo "POLICY VERSION MISMATCH" hoặc "policy_version_mismatch" →
+   PHẢI abstain hoàn toàn. KHÔNG được dùng nội dung v4 để trả lời. Chỉ nêu rằng
+   đơn hàng thuộc phạm vi chính sách v3 và tài liệu v3 không có trong hệ thống hiện tại,
+   cần chuyển sang CS team để xem xét thủ công.
+7. Khi trả lời về kênh thông báo SLA P1, phải liệt kê ĐẦY ĐỦ tất cả kênh bao gồm
+   cả công cụ tự động (ví dụ PagerDuty) nếu được đề cập bất kỳ đâu trong tài liệu.
 """
 
 
@@ -76,6 +82,34 @@ def _build_context(chunks: list, policy_result: dict) -> str:
     """Xây dựng context string từ chunks và policy result."""
     parts = []
 
+    # HARD STOP: policy_version_mismatch phải abstain — đặt đầu tiên để LLM thấy ngay
+    if policy_result:
+        for ex in policy_result.get("exceptions_found", []):
+            if ex.get("type") == "policy_version_mismatch":
+                parts.append(
+                    "=== CẢNH BÁO BẮT BUỘC: POLICY VERSION MISMATCH ===\n"
+                    + ex.get("rule", "") + "\n"
+                    "KHÔNG ĐƯỢC dùng nội dung policy v4 để trả lời câu hỏi này.\n"
+                    "Chỉ được phép nêu: đơn hàng thuộc phạm vi v3, tài liệu v3 không có "
+                    "trong hệ thống, cần chuyển CS team xem xét thủ công."
+                )
+
+    # Highlight PagerDuty if mentioned anywhere in chunks — LLM often misses it
+    # when buried in tools/channels section.
+    pagerduty_chunks = [c for c in chunks if "pagerduty" in c.get("text", "").lower()]
+    if pagerduty_chunks:
+        pagerduty_note = next(
+            (line for c in pagerduty_chunks
+             for line in c["text"].splitlines()
+             if "pagerduty" in line.lower()),
+            "PagerDuty: Tự động nhắn on-call khi P1 ticket mới."
+        )
+        parts.append(
+            "=== LƯU Ý KÊNH THÔNG BÁO TỰ ĐỘNG ===\n"
+            + pagerduty_note.strip() + "\n"
+            "(Kênh này phải được liệt kê khi trả lời về SLA P1 notification.)"
+        )
+
     if chunks:
         parts.append("=== TÀI LIỆU THAM KHẢO ===")
         for i, chunk in enumerate(chunks, 1):
@@ -87,7 +121,8 @@ def _build_context(chunks: list, policy_result: dict) -> str:
     if policy_result and policy_result.get("exceptions_found"):
         parts.append("\n=== POLICY EXCEPTIONS ===")
         for ex in policy_result["exceptions_found"]:
-            parts.append(f"- {ex.get('rule', '')}")
+            if ex.get("type") != "policy_version_mismatch":  # đã xử lý ở trên
+                parts.append(f"- {ex.get('rule', '')}")
 
     if not parts:
         return "(Không có context)"
@@ -106,6 +141,11 @@ def _estimate_confidence(chunks: list, answer: str, policy_result: dict) -> floa
     """
     if not chunks:
         return 0.1  # Không có evidence → low confidence
+
+    # policy_version_mismatch → phải abstain, confidence thấp
+    for ex in policy_result.get("exceptions_found", []):
+        if ex.get("type") == "policy_version_mismatch":
+            return 0.2
 
     if "Không đủ thông tin" in answer or "không có trong tài liệu" in answer.lower():
         return 0.3  # Abstain → moderate-low
@@ -130,6 +170,20 @@ def synthesize(task: str, chunks: list, policy_result: dict) -> dict:
     Returns:
         {"answer": str, "sources": list, "confidence": float}
     """
+    # Hard-abort: policy_version_mismatch — bypass LLM entirely to prevent
+    # the model from applying v4 content to a v3-scoped order.
+    for ex in (policy_result or {}).get("exceptions_found", []):
+        if ex.get("type") == "policy_version_mismatch":
+            reason = ex.get("rule", "Đơn hàng đặt trước ngày chính sách v4 có hiệu lực.")
+            abstain_answer = (
+                "Không thể xác nhận câu trả lời cho đơn hàng này.\n\n"
+                + reason + "\n\n"
+                "Tài liệu hiện tại chỉ có chính sách hoàn tiền v4 (hiệu lực từ 01/02/2026). "
+                "Vui lòng liên hệ CS team để được hỗ trợ xem xét thủ công theo chính sách v3."
+            )
+            sources = list({c.get("source", "unknown") for c in chunks})
+            return {"answer": abstain_answer, "sources": sources, "confidence": 0.2}
+
     context = _build_context(chunks, policy_result)
 
     # Build messages
