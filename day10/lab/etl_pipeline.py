@@ -25,7 +25,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from monitoring.freshness_check import check_manifest_freshness
+from monitoring.freshness_check import check_manifest_freshness_dual
 from quality.expectations import run_expectations
 from transform.cleaning_rules import clean_rows, load_raw_csv, write_cleaned_csv, write_quarantine_csv
 
@@ -69,6 +69,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     cleaned, quarantine = clean_rows(
         rows,
         apply_refund_window_fix=not args.no_refund_fix,
+        apply_hr_stale_quarantine=not args.skip_hr_stale,
     )
     cleaned_path = CLEAN_DIR / f"cleaned_{run_id.replace(':', '-')}.csv"
     quar_path = QUAR_DIR / f"quarantine_{run_id.replace(':', '-')}.csv"
@@ -88,7 +89,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         log("PIPELINE_HALT: expectation suite failed (halt).")
         return 2
     if halt and args.skip_validate:
-        log("WARN: expectation failed but --skip-validate → tiếp tục embed (chỉ dùng cho demo Sprint 3).")
+        log("WARN: expectation failed but --skip-validate -> tiep tuc embed (chi dung cho demo Sprint 3).")
 
     # Embed
     embed_ok = cmd_embed_internal(
@@ -112,6 +113,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         "quarantine_records": len(quarantine),
         "latest_exported_at": latest_exported,
         "no_refund_fix": bool(args.no_refund_fix),
+        "skip_hr_stale": bool(args.skip_hr_stale),
         "skipped_validate": bool(args.skip_validate and halt),
         "cleaned_csv": str(cleaned_path.relative_to(ROOT)),
         "chroma_path": os.environ.get("CHROMA_DB_PATH", "./chroma_db"),
@@ -121,8 +123,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     man_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     log(f"manifest_written={man_path.relative_to(ROOT)}")
 
-    status, fdetail = check_manifest_freshness(man_path, sla_hours=float(os.environ.get("FRESHNESS_SLA_HOURS", "24")))
-    log(f"freshness_check={status} {json.dumps(fdetail, ensure_ascii=False)}")
+    # Bonus: đo freshness ở 2 boundary (ingest latest_exported_at + publish run_timestamp).
+    sla = float(os.environ.get("FRESHNESS_SLA_HOURS", "24"))
+    status, fdetail = check_manifest_freshness_dual(man_path, sla_hours=sla)
+    log(f"freshness_check ingest_boundary={fdetail['ingest_boundary']['status']} "
+        f"{json.dumps(fdetail['ingest_boundary'], ensure_ascii=False)}")
+    log(f"freshness_check publish_boundary={fdetail['publish_boundary']['status']} "
+        f"{json.dumps(fdetail['publish_boundary'], ensure_ascii=False)}")
+    log(f"freshness_check overall={status}")
 
     log("PIPELINE_OK")
     return 0
@@ -183,8 +191,10 @@ def cmd_freshness(args: argparse.Namespace) -> int:
         print(f"manifest not found: {p}", file=sys.stderr)
         return 1
     sla = float(os.environ.get("FRESHNESS_SLA_HOURS", "24"))
-    status, detail = check_manifest_freshness(p, sla_hours=sla)
-    print(status, json.dumps(detail, ensure_ascii=False))
+    status, detail = check_manifest_freshness_dual(p, sla_hours=sla)
+    print(f"overall={status}")
+    print(f"ingest_boundary  : {json.dumps(detail['ingest_boundary'], ensure_ascii=False)}")
+    print(f"publish_boundary : {json.dumps(detail['publish_boundary'], ensure_ascii=False)}")
     return 0 if status != "FAIL" else 1
 
 
@@ -199,6 +209,11 @@ def main() -> int:
         "--no-refund-fix",
         action="store_true",
         help="Không áp dụng rule fix cửa sổ 14→7 ngày (dùng cho inject corruption / before).",
+    )
+    p_run.add_argument(
+        "--skip-hr-stale",
+        action="store_true",
+        help="Không quarantine HR policy có effective_date < 2026-01-01 (inject Sprint 3 — Merit).",
     )
     p_run.add_argument(
         "--skip-validate",
