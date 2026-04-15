@@ -1,0 +1,123 @@
+{
+  "task": "Ticket P1 được tạo và on-call engineer không phản hồi sau 10 phút. Theo đúng SLA, hệ thống sẽ làm gì tiếp theo?",
+  "route_reason": "task contains P1, SLA, or escalation keywords | risk_high flagged",
+  "risk_high": true,
+  "needs_tool": false,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: Phần 3: Quy trình xử lý sự cố P1\n---\nBước 1: Tiếp nhận\nOn-call engineer nhận alert hoặc ticket, xác nhận severity trong 5 phút.\n\nBước 2: Thông báo\nGửi thông báo ngay lập tức qua đầy đủ 3 kênh sau:\n- Slack #incident-p1\n- Email: incident@company.internal\n- PagerDuty: tự động nhắn on-call engineer khi P1 ticket mới\n\nBước 3: Triage và phân công\nLead Engineer phân công engineer xử lý trong 10 phút.\n\nBước 4: Xử lý\nEngineer cập nhật tiến độ lên ticket mỗi 30 phút. Nếu cần hỗ trợ thêm, escalate ngay.\n\nBước 5: Resolution\nSau khi khắc phục, viết incident report trong vòng 24 giờ.",
+      "source": "sla_p1_2026.txt",
+      "score": 0.6857,
+      "metadata": {
+        "doc": "sla_p1_2026",
+        "source": "sla_p1_2026.txt",
+        "section": "Phần 3: Quy trình xử lý sự cố P1"
+      }
+    },
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: Phần 4: Công cụ và kênh liên lạc\n---\nTicket system: Jira (project IT-SUPPORT)\nSlack channel: #incident-p1, #incident-p2\nPagerDuty: Tự động nhắn on-call khi P1 ticket mới\nHotline on-call: ext. 9999 (24/7)",
+      "source": "sla_p1_2026.txt",
+      "score": 0.6444,
+      "metadata": {
+        "doc": "sla_p1_2026",
+        "section": "Phần 4: Công cụ và kênh liên lạc",
+        "source": "sla_p1_2026.txt"
+      }
+    },
+    {
+      "text": "Tai lieu: sla_p1_2026\nMuc: Phần 2: SLA theo mức độ ưu tiên\n---\nTicket P1:\n- Phản hồi ban đầu (first response): 15 phút kể từ khi ticket được tạo.\n- Xử lý và khắc phục (resolution): 4 giờ.\n- Escalation: Tự động escalate lên Senior Engineer nếu không có phản hồi trong 10 phút.\n- Thông báo stakeholder: Ngay khi nhận ticket, update mỗi 30 phút cho đến khi resolve.\n\nTicket P2:\n- Phản hồi ban đầu: 2 giờ.\n- Xử lý và khắc phục: 1 ngày làm việc.\n- Escalation: Tự động escalate sau 90 phút không có phản hồi.\n\nTicket P3:\n- Phản hồi ban đầu: 1 ngày làm việc.\n- Xử lý và khắc phục: 5 ngày làm việc.\n\nTicket P4:\n- Phản hồi ban đầu: 3 ngày làm việc.\n- Xử lý và khắc phục: Theo sprint cycle (thông thường 2-4 tuần).",
+      "source": "sla_p1_2026.txt",
+      "score": 0.6428,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "doc": "sla_p1_2026",
+        "section": "Phần 2: SLA theo mức độ ưu tiên"
+      }
+    },
+    {
+      "text": "Tai lieu: it_helpdesk_faq\nMuc: Section 4: Thiết bị và phần cứng\n---\nQ: Laptop mới được cấp sau bao lâu khi vào công ty?\nA: Laptop được cấp trong ngày onboarding đầu tiên. Nếu có vấn đề, liên hệ HR hoặc IT Admin.\n\nQ: Laptop bị hỏng phải báo cáo như thế nào?\nA: Tạo ticket P2 hoặc P3 tùy mức độ nghiêm trọng. Mang thiết bị đến IT Room (tầng 3) để kiểm tra.",
+      "source": "it_helpdesk_faq.txt",
+      "score": 0.5364,
+      "metadata": {
+        "doc": "it_helpdesk_faq",
+        "source": "it_helpdesk_faq.txt",
+        "section": "Section 4: Thiết bị và phần cứng"
+      }
+    },
+    {
+      "text": "Tai lieu: access_control_sop\nMuc: Section 4: Escalation khi cần thay đổi quyền hệ thống\n---\nEscalation chỉ áp dụng khi cần thay đổi quyền hệ thống ngoài quy trình thông thường.\nVí dụ: Khẩn cấp trong sự cố P1, cần cấp quyền tạm thời để fix incident.\n\nEmergency bypass theo cấp độ quyền:\n\nLevel 1 emergency: Không có emergency bypass — áp dụng quy trình thông thường (1 ngày làm việc).\n\nLevel 2 emergency bypass (CÓ hỗ trợ emergency bypass):\n- Điều kiện: Cần approval đồng thời của Line Manager VÀ IT Admin on-call.\n- On-call IT Admin cấp quyền tạm thời (max 24 giờ) sau khi nhận được approval đồng thời từ cả Line Manager và IT Admin on-call.\n- KHÔNG cần IT Security tham gia vào quy trình emergency bypass của Level 2 (khác Level 3).\n- Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.\n\nLevel 3 emergency: KHÔNG có emergency bypass — bắt buộc đầy đủ 3 người phê duyệt (Line Manager + IT Admin + IT Security).\n\nLưu ý chung:\n- Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.\n- Mọi quyền tạm thời phải được ghi log vào hệ thống Security Audit.",
+      "source": "access_control_sop.txt",
+      "score": 0.4982,
+      "metadata": {
+        "doc": "access_control_sop",
+        "source": "access_control_sop.txt",
+        "section": "Section 4: Escalation khi cần thay đổi quyền hệ thống"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "access_control_sop.txt",
+    "sla_p1_2026.txt",
+    "it_helpdesk_faq.txt"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Theo đúng SLA, nếu ticket P1 được tạo và on-call engineer không phản hồi sau 10 phút, hệ thống sẽ tự động escalate lên Senior Engineer. Điều này được quy định trong phần SLA cho ticket P1: \"Tự động escalate lên Senior Engineer nếu không có phản hồi trong 10 phút\" [3].",
+  "sources": [
+    "access_control_sop.txt",
+    "sla_p1_2026.txt",
+    "it_helpdesk_faq.txt"
+  ],
+  "confidence": 0.6,
+  "history": [
+    "[supervisor] received task: Ticket P1 được tạo và on-call engineer không phản hồi sau 10 phút. Theo đúng SLA",
+    "[supervisor] route=retrieval_worker reason=task contains P1, SLA, or escalation keywords | risk_high flagged",
+    "[retrieval_worker] retrieved 5 chunks from ['access_control_sop.txt', 'sla_p1_2026.txt', 'it_helpdesk_faq.txt']",
+    "[synthesis_worker] answer generated, confidence=0.6, sources=['access_control_sop.txt', 'sla_p1_2026.txt', 'it_helpdesk_faq.txt']",
+    "[graph] completed in 2752ms"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 2752,
+  "run_id": "run_20260414_180005",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "Ticket P1 được tạo và on-call engineer không phản hồi sau 10 phút. Theo đúng SLA, hệ thống sẽ làm gì tiếp theo?",
+        "top_k": 5
+      },
+      "output": {
+        "chunks_count": 5,
+        "sources": [
+          "access_control_sop.txt",
+          "sla_p1_2026.txt",
+          "it_helpdesk_faq.txt"
+        ]
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "Ticket P1 được tạo và on-call engineer không phản hồi sau 10 phút. Theo đúng SLA, hệ thống sẽ làm gì tiếp theo?",
+        "chunks_count": 5,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 268,
+        "sources": [
+          "access_control_sop.txt",
+          "sla_p1_2026.txt",
+          "it_helpdesk_faq.txt"
+        ],
+        "confidence": 0.6
+      },
+      "error": null
+    }
+  ]
+}

@@ -45,10 +45,21 @@ Bước 5: Nhân viên nhận thông báo qua email khi quyền được cấp.
 Escalation chỉ áp dụng khi cần thay đổi quyền hệ thống ngoài quy trình thông thường.
 Ví dụ: Khẩn cấp trong sự cố P1, cần cấp quyền tạm thời để fix incident.
 
-Quy trình escalation khẩn cấp:
-1. On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời.
-2. Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.
-3. Mọi quyền tạm thời phải được ghi log vào hệ thống Security Audit.
+Emergency bypass theo cấp độ quyền:
+
+Level 1 emergency: Không có emergency bypass — áp dụng quy trình thông thường (1 ngày làm việc).
+
+Level 2 emergency bypass (CÓ hỗ trợ emergency bypass):
+- Điều kiện: Cần approval đồng thời của Line Manager VÀ IT Admin on-call.
+- On-call IT Admin cấp quyền tạm thời (max 24 giờ) sau khi nhận được approval đồng thời từ cả Line Manager và IT Admin on-call.
+- KHÔNG cần IT Security tham gia vào quy trình emergency bypass của Level 2 (khác Level 3).
+- Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.
+
+Level 3 emergency: KHÔNG có emergency bypass — bắt buộc đầy đủ 3 người phê duyệt (Line Manager + IT Admin + IT Security).
+
+Lưu ý chung:
+- Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.
+- Mọi quyền tạm thời phải được ghi log vào hệ thống Security Audit.
 
 === Section 5: Thu hồi quyền truy cập ===
 Quyền phải được thu hồi trong các trường hợp:

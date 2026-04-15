@@ -47,7 +47,10 @@ Bước 1: Tiếp nhận
 On-call engineer nhận alert hoặc ticket, xác nhận severity trong 5 phút.
 
 Bước 2: Thông báo
-Gửi thông báo tới Slack #incident-p1 và email incident@company.internal ngay lập tức.
+Gửi thông báo ngay lập tức qua đầy đủ 3 kênh sau:
+- Slack #incident-p1
+- Email: incident@company.internal
+- PagerDuty: tự động nhắn on-call engineer khi P1 ticket mới
 
 Bước 3: Triage và phân công
 Lead Engineer phân công engineer xử lý trong 10 phút.

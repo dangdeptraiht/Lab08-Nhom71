@@ -1,0 +1,113 @@
+{
+  "task": "ERR-999: Lỗi không xác định khi truy cập hệ thống lúc 2am.",
+  "route_reason": "unknown error or high-risk scenario requires human review | human approved -> proceeding to retrieval",
+  "risk_high": true,
+  "needs_tool": false,
+  "hitl_triggered": true,
+  "retrieved_chunks": [
+    {
+      "text": "Tai lieu: QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)\nMuc: Section 4: Escalation khi cần thay đổi quyền hệ thống\n---\n1. On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời.\n2. Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.\n3. Mọi quyền tạm thời phải được ghi log vào hệ thống Security Audit.",
+      "source": "access-control-sop.md",
+      "score": 0.4292,
+      "metadata": {
+        "section": "Section 4: Escalation khi cần thay đổi quyền hệ thống",
+        "department": "IT Security",
+        "access": "internal",
+        "index": 5,
+        "title": "QUY TRÌNH KIỂM SOÁT TRUY CẬP HỆ THỐNG (ACCESS CONTROL SOP)",
+        "effective_date": "2026-01-01",
+        "source": "access-control-sop.md"
+      }
+    },
+    {
+      "text": "Tai lieu: IT HELPDESK FAQ — CÂU HỎI THƯỜNG GẶP\nMuc: Section 6: Liên hệ IT Helpdesk\n---\nHotline: ext. 9000 (8:00 - 18:00, Thứ 2 - Thứ 6)\nEmail: helpdesk@company.internal\nJira: project IT-SUPPORT\nSlack: #it-helpdesk\nEmergency (ngoài giờ): ext. 9999",
+      "source": "helpdesk-faq.md",
+      "score": 0.3806,
+      "metadata": {
+        "title": "IT HELPDESK FAQ — CÂU HỎI THƯỜNG GẶP",
+        "source": "helpdesk-faq.md",
+        "effective_date": "2026-01-20",
+        "access": "internal",
+        "section": "Section 6: Liên hệ IT Helpdesk",
+        "index": 5,
+        "department": "IT"
+      }
+    },
+    {
+      "text": "Tai lieu: IT HELPDESK FAQ — CÂU HỎI THƯỜNG GẶP\nMuc: Section 1: Tài khoản và mật khẩu\n---\nQ: Tôi quên mật khẩu, phải làm gì?\nA: Truy cập https://sso.company.internal/reset hoặc liên hệ Helpdesk qua ext. 9000. Mật khẩu mới sẽ được gửi qua email công ty trong vòng 5 phút.\n\nQ: Tài khoản bị khóa sau bao nhiêu lần đăng nhập sai?\nA: Tài khoản bị khóa sau 5 lần đăng nhập sai liên tiếp. Để mở khóa, liên hệ IT Helpdesk hoặc tự reset qua portal SSO.\n\nQ: Mật khẩu cần thay đổi định kỳ không?\nA: Có. Mật khẩu phải được thay đổi mỗi 90 ngày. Hệ thống sẽ nhắc nhở 7 ngày trước khi hết hạn.",
+      "source": "helpdesk-faq.md",
+      "score": 0.3798,
+      "metadata": {
+        "title": "IT HELPDESK FAQ — CÂU HỎI THƯỜNG GẶP",
+        "index": 0,
+        "effective_date": "2026-01-20",
+        "section": "Section 1: Tài khoản và mật khẩu",
+        "source": "helpdesk-faq.md",
+        "access": "internal",
+        "department": "IT"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "access-control-sop.md",
+    "helpdesk-faq.md"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Không đủ thông tin trong tài liệu nội bộ để xác định nguyên nhân cụ thể của lỗi ERR-999 khi truy cập hệ thống lúc 2am. Bạn có thể liên hệ IT Helpdesk qua hotline ext. 9999 trong trường hợp khẩn cấp hoặc gửi ticket qua Jira: project IT-SUPPORT để được hỗ trợ thêm [2].",
+  "sources": [
+    "access-control-sop.md",
+    "helpdesk-faq.md"
+  ],
+  "confidence": 0.3,
+  "history": [
+    "[supervisor] received task: ERR-999: Lỗi không xác định khi truy cập hệ thống lúc 2am.",
+    "[supervisor] route=human_review reason=unknown error or high-risk scenario requires human review",
+    "[human_review] HITL triggered — awaiting human input",
+    "[retrieval_worker] retrieved 3 chunks from ['access-control-sop.md', 'helpdesk-faq.md']",
+    "[synthesis_worker] answer generated, confidence=0.3, sources=['access-control-sop.md', 'helpdesk-faq.md']",
+    "[graph] completed in 4007ms"
+  ],
+  "workers_called": [
+    "human_review",
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 4007,
+  "run_id": "run_20260414_172018",
+  "worker_io_logs": [
+    {
+      "worker": "retrieval_worker",
+      "input": {
+        "task": "ERR-999: Lỗi không xác định khi truy cập hệ thống lúc 2am.",
+        "top_k": 3
+      },
+      "output": {
+        "chunks_count": 3,
+        "sources": [
+          "access-control-sop.md",
+          "helpdesk-faq.md"
+        ]
+      },
+      "error": null
+    },
+    {
+      "worker": "synthesis_worker",
+      "input": {
+        "task": "ERR-999: Lỗi không xác định khi truy cập hệ thống lúc 2am.",
+        "chunks_count": 3,
+        "has_policy": false
+      },
+      "output": {
+        "answer_length": 267,
+        "sources": [
+          "access-control-sop.md",
+          "helpdesk-faq.md"
+        ],
+        "confidence": 0.3
+      },
+      "error": null
+    }
+  ]
+}
