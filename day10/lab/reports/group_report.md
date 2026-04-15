@@ -4,9 +4,10 @@
 **Thành viên:**
 | Tên | Vai trò (Day 10) | Email |
 |-----|------------------|-------|
-| Ngo Van Long | Ingestion / Raw Owner + Cleaning & Quality Owner | _ |
-| _ | Embed & Idempotency Owner | _ |
-| _ | Monitoring / Docs Owner | _ |
+| Ngo Van Long | Ingestion / Raw Owner | _ |
+| Nguyen Hai Dang | Cleaning & Quality Owner | _ |
+| Nguyen Manh Phu | Embed & Idempotency Owner | _ |
+| Nguyen Phuong Linh | Monitoring / Docs Owner | _ |
 
 **Ngày nộp:** 2026-04-15  
 **Repo:** dangdeptraiht/Lab08-Nhom71  
